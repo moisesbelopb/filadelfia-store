@@ -1,0 +1,55 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# env files (segredos)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+
+# supabase local
+/supabase/.branches
+/supabase/.temp
+
+# scratch
+/tmp
+
+# credenciais e config local (NUNCA commitar)
+CREDENCIAIS.txt
+.claude/
+.claude
+
+# assets de design brutos (não usados pelo app; servidos via Supabase Storage)
+/img/
+
+# backups e imagem órfã pesada dentro de public/ (não vão pra deploy)
+/public/products/.backup-original/
+/public/products/modelo_homem_preto_caminhando.png
