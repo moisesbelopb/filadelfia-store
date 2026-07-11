@@ -42,7 +42,7 @@ export function CartView() {
   const subtotal = cartSubtotal(items);
 
   return (
-    <div className="flex flex-col gap-4 pb-28">
+    <div className="flex flex-col gap-4 pb-[calc(10rem_+_env(safe-area-inset-bottom))] sm:pb-28">
       <h1 className="text-xl font-semibold">Seu carrinho</h1>
 
       <ul className="flex flex-col divide-y divide-border border-y border-border">
@@ -89,10 +89,7 @@ export function CartView() {
         ))}
       </ul>
 
-      <div
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 p-4 backdrop-blur sm:bottom-0"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}
-      >
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem_+_env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 p-4 backdrop-blur sm:bottom-0 sm:pb-[calc(1rem_+_env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-5xl items-center gap-4">
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">Subtotal</span>

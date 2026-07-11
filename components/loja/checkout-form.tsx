@@ -162,7 +162,10 @@ export function CheckoutForm({
   const total = subtotal + fee;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 pb-28">
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex flex-col gap-4 pb-[calc(10rem_+_env(safe-area-inset-bottom))] sm:pb-28"
+    >
       <h1 className="text-xl font-semibold">Finalizar pedido</h1>
 
       <Card>
@@ -364,10 +367,7 @@ export function CheckoutForm({
         </CardContent>
       </Card>
 
-      <div
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 p-4 backdrop-blur"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}
-      >
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem_+_env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 p-4 backdrop-blur sm:bottom-0 sm:pb-[calc(1rem_+_env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-5xl items-center gap-4">
           <div className="flex flex-col">
             {isDelivery && fee > 0 && (
