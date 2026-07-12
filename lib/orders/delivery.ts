@@ -110,6 +110,9 @@ export function upcomingSlots(
   }
 
   const out: UpcomingSlot[] = [];
+  // Cada (dia da semana + faixa) aparece só na PRÓXIMA ocorrência — evita ver o
+  // mesmo dia/horário repetido para várias semanas (recorrência = "duplicado").
+  const seen = new Set<string>();
   const base = new Date(from);
   base.setHours(0, 0, 0, 0);
   for (let i = 0; i <= leadDays; i += 1) {
@@ -121,6 +124,16 @@ export function upcomingSlots(
     const dm = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
     for (const s of daySlots) {
       const window = `${s.start}-${s.end}`;
+      const key = `${d.getDay()}-${window}`;
+      if (seen.has(key)) continue;
+      // Hoje: não oferece faixa que já começou (a próxima semana entra no lugar).
+      if (i === 0) {
+        const [hh, mm] = s.start.split(":").map(Number);
+        const start = new Date(d);
+        start.setHours(hh ?? 0, mm ?? 0, 0, 0);
+        if (start <= from) continue;
+      }
+      seen.add(key);
       out.push({
         key: `${dateIso}__${window}`,
         date: dateIso,
