@@ -161,6 +161,46 @@ export async function toggleProductActive(id: string, isActive: boolean): Promis
   return ok(undefined);
 }
 
+/**
+ * Exclui um produto definitivamente. O banco remove em cascata variantes,
+ * imagens (linhas), itens de carrinho e movimentos; `order_items.product_id`
+ * vira NULL — o histórico de pedidos é preservado (guarda o snapshot do item).
+ * Aqui também apagamos os arquivos de imagem do bucket (o cascade não faz isso).
+ */
+export async function deleteProduct(id: string): Promise<ActionResult> {
+  const g = await guard();
+  if (g) return g;
+
+  const supabase = await createClient();
+
+  // Nome (auditoria) e caminhos das imagens (limpeza do Storage) antes de excluir.
+  const { data: product } = await supabase
+    .from("products")
+    .select("name, product_images(storage_path)")
+    .eq("id", id)
+    .maybeSingle();
+  if (!product) return fail("Produto não encontrado.");
+
+  const paths = ((product.product_images as { storage_path: string }[] | null) ?? [])
+    .map((i) => i.storage_path)
+    .filter(Boolean);
+
+  const { error } = await supabase.from("products").delete().eq("id", id);
+  if (error) return fail(error.message);
+
+  // Best-effort: remove os arquivos do bucket (não bloqueia a exclusão).
+  if (paths.length) {
+    await supabase.storage.from("product-images").remove(paths);
+  }
+
+  const user = await getCurrentUser();
+  await logAudit(user?.id ?? null, "product.delete", "product", id, { name: product.name });
+
+  revalidatePath("/admin/produtos");
+  revalidatePath("/");
+  return ok(undefined);
+}
+
 export async function uploadProductImage(
   productId: string,
   formData: FormData,

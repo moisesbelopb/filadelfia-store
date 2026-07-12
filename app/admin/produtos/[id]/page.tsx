@@ -1,3 +1,4 @@
+import { ProductDelete } from "@/components/admin/product-delete";
 import { ProductForm } from "@/components/admin/product-form";
 import { ProductImagesManager } from "@/components/admin/product-images-manager";
 import { ProductVariantsManager } from "@/components/admin/product-variants-manager";
@@ -32,6 +33,7 @@ export default async function EditarProdutoPage({
       <ProductForm categories={categories} product={product} />
       <ProductVariantsManager productId={product.id} variants={product.product_variants ?? []} />
       <ProductImagesManager productId={product.id} images={images} productName={product.name} />
+      <ProductDelete productId={product.id} productName={product.name} />
     </div>
   );
 }

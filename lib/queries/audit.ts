@@ -49,6 +49,8 @@ function describe(
       return `Atualizou variantes/estoque do produto${t}`;
     case "product.image.hover":
       return `Definiu a imagem de destaque do produto${t}`;
+    case "product.delete":
+      return `Excluiu o produto ${String(meta?.name ?? "")}`.trim();
     case "stock.adjust":
       return `Ajustou o estoque do produto${t} (${String(meta?.type ?? "")} ${String(
         meta?.quantity ?? "",
