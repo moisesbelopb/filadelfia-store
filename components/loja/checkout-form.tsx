@@ -17,7 +17,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { type FieldErrors, useForm } from "react-hook-form";
+
+/** Primeira mensagem de erro do formulário (percorre aninhados como address.*). */
+function firstErrorMessage(errs: unknown): string | undefined {
+  if (!errs || typeof errs !== "object") return undefined;
+  const o = errs as Record<string, unknown>;
+  if (typeof o.message === "string" && o.message) return o.message;
+  for (const [k, v] of Object.entries(o)) {
+    if (k === "ref" || k === "type") continue;
+    const m = firstErrorMessage(v);
+    if (m) return m;
+  }
+  return undefined;
+}
 
 export function CheckoutForm({
   defaults,
@@ -147,6 +160,15 @@ export function CheckoutForm({
     router.push(`/pedidos/${res.data.orderId}`);
   }
 
+  // Sem isso, uma validação que falha simplesmente não faz nada ("nada acontece").
+  function onInvalid(errs: FieldErrors<CheckoutInput>) {
+    toast({
+      variant: "error",
+      title: "Revise o formulário",
+      description: firstErrorMessage(errs) ?? "Preencha os campos destacados em vermelho.",
+    });
+  }
+
   if (mounted && items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
@@ -163,7 +185,7 @@ export function CheckoutForm({
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit(onSubmit, onInvalid)}
       className="flex flex-col gap-4 pb-[calc(10rem_+_env(safe-area-inset-bottom))] sm:pb-28"
     >
       <h1 className="text-xl font-semibold">Finalizar pedido</h1>
@@ -382,7 +404,7 @@ export function CheckoutForm({
             type="submit"
             size="lg"
             className="flex-1"
-            disabled={isSubmitting || (isDelivery && !!city && !served)}
+            disabled={isSubmitting}
           >
             {isSubmitting ? "Enviando..." : "Enviar pedido"}
           </Button>
