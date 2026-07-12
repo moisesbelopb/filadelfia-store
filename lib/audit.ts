@@ -3,7 +3,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /** Histórico de auditoria mantido (dias). Logs mais antigos são descartados. */
-export const AUDIT_RETENTION_DAYS = 120;
+export const AUDIT_RETENTION_DAYS = 90;
 
 /** Registra uma ação administrativa em audit_logs (best-effort). */
 export async function logAudit(
