@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import {
+  FileClock,
   LayoutDashboard,
   MessageSquare,
   Package,
@@ -25,11 +26,15 @@ const items = [
   { href: "/admin/configuracoes/visual", label: "Visual", icon: Palette },
 ];
 
-export function AdminNav() {
+/** `showLogs` só é true para o administrador nativo (dono dos logs de acesso). */
+export function AdminNav({ showLogs = false }: { showLogs?: boolean }) {
   const pathname = usePathname();
+  const navItems = showLogs
+    ? [...items, { href: "/admin/logs", label: "Logs de acesso", icon: FileClock }]
+    : items;
   return (
     <nav className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
-      {items.map((item) => {
+      {navItems.map((item) => {
         const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
         const Icon = item.icon;
         return (

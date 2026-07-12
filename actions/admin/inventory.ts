@@ -1,6 +1,7 @@
 "use server";
 
 import { type ActionResult, fail, ok } from "@/lib/action-result";
+import { logAudit } from "@/lib/audit";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
@@ -43,6 +44,8 @@ export async function adjustStock(input: unknown): Promise<ActionResult> {
     created_by: user?.id ?? null,
   });
   if (movErr) return fail(movErr.message);
+
+  await logAudit(user?.id ?? null, "stock.adjust", "product", productId, { type, quantity, reason });
 
   revalidatePath("/admin/estoque");
   revalidatePath("/admin/produtos");

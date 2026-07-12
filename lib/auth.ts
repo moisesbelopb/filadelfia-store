@@ -32,3 +32,14 @@ export async function isAdminUser(): Promise<boolean> {
   const profile = await getProfile();
   return profile?.role === "admin" || profile?.role === "super_admin";
 }
+
+/** E-mail do administrador NATIVO (único com acesso aos logs de auditoria). */
+export const NATIVE_ADMIN_EMAIL = (
+  process.env.NATIVE_ADMIN_EMAIL ?? "casadefiladelfia@gmail.com"
+).toLowerCase();
+
+/** True apenas para o administrador nativo — dono dos logs de acesso. */
+export async function isNativeAdmin(): Promise<boolean> {
+  const user = await getCurrentUser();
+  return (user?.email ?? "").toLowerCase() === NATIVE_ADMIN_EMAIL;
+}
