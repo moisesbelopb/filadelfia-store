@@ -10,13 +10,26 @@ export const addressSchema = z.object({
   zip: z.string().min(8, "CEP inválido").max(9),
 });
 
+// Base "solta": o formulário sempre envia strings (podem vir vazias). A
+// obrigatoriedade real do endereço é aplicada no superRefine, só na ENTREGA —
+// assim a retirada não exige endereço (senão dava "Informe a rua" na retirada).
+const looseAddressSchema = z.object({
+  street: z.string().optional(),
+  number: z.string().optional(),
+  complement: z.string().optional(),
+  neighborhood: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional(),
+});
+
 export const checkoutSchema = z
   .object({
     customerName: z.string().min(2, "Informe seu nome"),
     customerWhatsapp: z.string().min(10, "WhatsApp inválido"),
     fulfillment: z.enum(["entrega", "retirada"]),
-    // Preenchido só quando entrega; validado no superRefine abaixo.
-    address: addressSchema.partial().optional(),
+    // Base solta; a exigência real é no superRefine, só na entrega.
+    address: looseAddressSchema.optional(),
     scheduledDate: z.string().min(1, "Escolha um dia"),
     scheduledWindow: z.string().min(1, "Escolha um horário"),
     notes: z.string().max(500).optional(),
