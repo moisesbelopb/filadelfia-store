@@ -22,8 +22,8 @@ export async function logAudit(
       entity_id: entityId,
       metadata: metadata ?? null,
     });
-    // Retenção: mantém ~120 dias de histórico (purga junto de cada ação — o
-    // volume é baixo e o índice em created_at deixa o delete barato).
+    // Retenção: mantém AUDIT_RETENTION_DAYS de histórico (purga junto de cada
+    // ação — o volume é baixo e o índice em created_at deixa o delete barato).
     const cutoff = new Date(Date.now() - AUDIT_RETENTION_DAYS * 86_400_000).toISOString();
     await service.from("audit_logs").delete().lt("created_at", cutoff);
   } catch {

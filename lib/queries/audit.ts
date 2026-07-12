@@ -76,7 +76,7 @@ function describe(
 }
 
 /**
- * Logs de auditoria dos últimos 120 dias, em ordem cronológica decrescente,
+ * Logs de auditoria dentro da janela de retenção, em ordem cronológica decrescente,
  * com o ator (nome/e-mail/papel) e a descrição legível da ação.
  */
 export async function getAuditLogs(limit = 500): Promise<AuditEntry[]> {
