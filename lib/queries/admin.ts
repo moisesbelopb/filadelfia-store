@@ -21,6 +21,7 @@ export interface AdminUserRow {
   email: string;
   full_name: string | null;
   role: UserRole;
+  active: boolean;
   created_at: string;
 }
 
@@ -46,11 +47,15 @@ export async function listUsers(): Promise<AdminUserRow[]> {
   return users
     .map((u) => {
       const p = byId.get(u.id);
+      // Usuário "banido" (ban_duration) => desativado. banned_until vem do auth.
+      const bannedUntil = (u as { banned_until?: string | null }).banned_until;
+      const active = !bannedUntil || new Date(bannedUntil).getTime() <= Date.now();
       return {
         id: u.id,
         email: u.email ?? "—",
         full_name: (p?.full_name as string | null) ?? null,
         role: ((p?.role as UserRole) ?? "cliente") satisfies UserRole,
+        active,
         created_at: u.created_at,
       };
     })

@@ -35,6 +35,12 @@ function describe(
       return `Criou o usuário${t || " (novo)"} (${String(meta?.role ?? "cliente")})`;
     case "user.set_role":
       return `Alterou o papel de${t || " um usuário"} para ${String(meta?.role ?? "?")}`;
+    case "user.deactivate":
+      return `Desativou o usuário${t || (meta?.email ? ` ${String(meta.email)}` : "")}`;
+    case "user.activate":
+      return `Reativou o usuário${t || (meta?.email ? ` ${String(meta.email)}` : "")}`;
+    case "user.delete":
+      return `Excluiu o usuário ${String(meta?.name || meta?.email || "removido")}`;
     case "product.create":
       return `Criou o produto${t}`;
     case "product.update":

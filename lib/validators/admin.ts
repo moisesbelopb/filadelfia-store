@@ -131,6 +131,15 @@ export const setRoleSchema = z.object({
   role: z.enum(["cliente", "admin", "super_admin"]),
 });
 
+export const setActiveSchema = z.object({
+  userId: z.string().uuid(),
+  active: z.coerce.boolean(),
+});
+
+export const deleteUserSchema = z.object({
+  userId: z.string().uuid(),
+});
+
 export const adjustStockSchema = z.object({
   productId: z.string().uuid(),
   type: z.enum(["entrada", "ajuste"]),

@@ -1,9 +1,10 @@
 import { CardIconHeader } from "@/components/admin/card-icon-header";
+import { UserActions } from "@/components/admin/user-actions";
 import { UserCreateForm } from "@/components/admin/user-create-form";
 import { UserRoleSelect } from "@/components/admin/user-role-select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { getCurrentUser } from "@/lib/auth";
+import { NATIVE_ADMIN_EMAIL, getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { listUsers } from "@/lib/queries/admin";
 import { Users } from "lucide-react";
@@ -53,24 +54,40 @@ export default async function UsuariosPage() {
             <ul className="flex flex-col gap-2">
               {users.map((u) => {
                 const isSelf = u.id === me?.id;
+                const isNative = u.email.toLowerCase() === NATIVE_ADMIN_EMAIL;
+                const canManage = !isSelf && !isNative;
                 return (
                   <li
                     key={u.id}
                     className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background p-3"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-foreground">
+                      <span
+                        className={`flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
+                          u.active
+                            ? "bg-secondary text-foreground"
+                            : "bg-secondary/50 text-muted-foreground"
+                        }`}
+                      >
                         {initials(u.full_name, u.email)}
                       </span>
                       <div className="min-w-0">
-                        <p className="flex items-center gap-2 truncate font-medium">
+                        <p className="flex flex-wrap items-center gap-2 truncate font-medium">
                           {u.full_name ?? "Sem nome"}
                           {isSelf && <Badge variant="secondary">você</Badge>}
+                          {!u.active && (
+                            <Badge className="border-destructive/40 bg-destructive/10 text-destructive">
+                              Inativo
+                            </Badge>
+                          )}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                       </div>
                     </div>
-                    <UserRoleSelect userId={u.id} role={u.role} disabled={isSelf} />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <UserRoleSelect userId={u.id} role={u.role} disabled={isSelf} />
+                      {canManage && <UserActions userId={u.id} active={u.active} />}
+                    </div>
                   </li>
                 );
               })}
