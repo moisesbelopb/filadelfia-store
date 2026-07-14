@@ -71,8 +71,25 @@ const emailTemplateSchema = z.object({
 export const emailSettingsSchema = z.object({
   order_placed: emailTemplateSchema,
   order_accepted: emailTemplateSchema,
+  order_separated: emailTemplateSchema,
+  order_ready_pickup: emailTemplateSchema,
+  order_shipped: emailTemplateSchema,
   order_delivered: emailTemplateSchema,
+  order_rejected: emailTemplateSchema,
+  order_canceled: emailTemplateSchema,
 });
+
+/** Chaves aceitas no envio de e-mail de teste (espelha EmailSettings). */
+export const emailEventSchema = z.enum([
+  "order_placed",
+  "order_accepted",
+  "order_separated",
+  "order_ready_pickup",
+  "order_shipped",
+  "order_delivered",
+  "order_rejected",
+  "order_canceled",
+]);
 
 export const templateSchema = z.object({
   key: z.string().min(1),

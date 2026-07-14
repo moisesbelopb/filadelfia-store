@@ -3,12 +3,13 @@
 import { type ActionResult, fail, ok } from "@/lib/action-result";
 import { logAudit } from "@/lib/audit";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
+import { emailEventForStatus } from "@/lib/email/defaults";
 import { isSupabaseConfigured } from "@/lib/env";
 import { dispatchOrderEmail } from "@/lib/notifications/order-email";
 import { REASON_REQUIRED, canTransition } from "@/lib/orders/fsm";
 import { createClient } from "@/lib/supabase/server";
 import { orderStatusSchema } from "@/lib/validators/admin";
-import type { OrderStatus } from "@/types/db";
+import type { FulfillmentType, OrderStatus } from "@/types/db";
 import { revalidatePath } from "next/cache";
 
 export async function changeOrderStatus(input: unknown): Promise<ActionResult> {
@@ -26,7 +27,7 @@ export async function changeOrderStatus(input: unknown): Promise<ActionResult> {
   const supabase = await createClient();
   const { data: current } = await supabase
     .from("orders")
-    .select("status")
+    .select("status, fulfillment_type")
     .eq("id", orderId)
     .maybeSingle();
   if (!current) return fail("Pedido não encontrado.");
@@ -45,9 +46,12 @@ export async function changeOrderStatus(input: unknown): Promise<ActionResult> {
   await logAudit(user?.id ?? null, `order.${to}`, "order", orderId, { reason });
 
   // E-mail transacional ao cliente (best-effort — não bloqueia a transição).
-  if (to === "aceito" || to === "entregue") {
+  // Cada status do fluxo tem seu e-mail; `saiu_entrega` avisa "pronto para
+  // retirada" ou "saiu para entrega" conforme o modo de recebimento.
+  const event = emailEventForStatus(to, current.fulfillment_type as FulfillmentType);
+  if (event) {
     try {
-      await dispatchOrderEmail(orderId, to === "aceito" ? "order_accepted" : "order_delivered");
+      await dispatchOrderEmail(orderId, event);
     } catch {
       // best-effort
     }

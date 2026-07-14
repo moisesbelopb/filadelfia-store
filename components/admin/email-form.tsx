@@ -1,5 +1,6 @@
 "use client";
 
+import { sendTestEmail } from "@/actions/admin/email";
 import { saveEmailSettings } from "@/actions/admin/settings";
 import { CardIconHeader } from "@/components/admin/card-icon-header";
 import { Button } from "@/components/ui/button";
@@ -7,37 +8,60 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { DEFAULT_EMAILS, EMAIL_EVENTS } from "@/lib/email/defaults";
+import {
+  DEFAULT_EMAILS,
+  EMAIL_EVENTS,
+  type OrderEmailEvent,
+  REASON_EVENTS,
+} from "@/lib/email/defaults";
 import { renderTemplate } from "@/lib/orders/template";
 import { toast } from "@/lib/use-toast";
 import { cn } from "@/lib/utils";
 import type { EmailSettings, EmailTemplate } from "@/types/db";
-import { BadgeCheck, Inbox, type LucideIcon, PackageCheck, RotateCcw } from "lucide-react";
+import {
+  BadgeCheck,
+  Ban,
+  CircleX,
+  Inbox,
+  type LucideIcon,
+  PackageCheck,
+  PackageSearch,
+  RotateCcw,
+  Send,
+  Store,
+  Truck,
+} from "lucide-react";
 import { useState, useTransition } from "react";
 
 /** Ícone + tom de cor por e-mail (o "entregue" herda o verde do e-mail real). */
-const META: Record<keyof EmailSettings, { icon: LucideIcon; tone: string }> = {
+const META: Record<OrderEmailEvent, { icon: LucideIcon; tone: string }> = {
   order_placed: { icon: Inbox, tone: "text-muted-foreground" },
   order_accepted: { icon: BadgeCheck, tone: "text-foreground" },
+  order_separated: { icon: PackageSearch, tone: "text-foreground" },
+  order_ready_pickup: { icon: Store, tone: "text-foreground" },
+  order_shipped: { icon: Truck, tone: "text-foreground" },
   order_delivered: { icon: PackageCheck, tone: "text-success" },
+  order_rejected: { icon: CircleX, tone: "text-destructive" },
+  order_canceled: { icon: Ban, tone: "text-muted-foreground" },
 };
 
 /** Dados de exemplo só para a prévia do assunto. */
-const PREVIEW_VARS = { cliente: "Maria", pedido: "1024" };
+const PREVIEW_VARS = { cliente: "Maria", pedido: "1024", motivo: "Produto sem estoque" };
 
 /** Preenche os campos com o que está salvo, caindo no padrão quando faltar. */
-function withDefaults(email: EmailSettings | null): EmailSettings {
-  return {
-    order_placed: { ...DEFAULT_EMAILS.order_placed, ...(email?.order_placed ?? {}) },
-    order_accepted: { ...DEFAULT_EMAILS.order_accepted, ...(email?.order_accepted ?? {}) },
-    order_delivered: { ...DEFAULT_EMAILS.order_delivered, ...(email?.order_delivered ?? {}) },
-  };
+function withDefaults(email: Partial<EmailSettings> | null): EmailSettings {
+  const out = { ...DEFAULT_EMAILS };
+  for (const evt of EMAIL_EVENTS) {
+    out[evt.key] = { ...DEFAULT_EMAILS[evt.key], ...(email?.[evt.key] ?? {}) };
+  }
+  return out;
 }
 
 export function EmailForm({ email }: { email: EmailSettings | null }) {
   const [form, setForm] = useState<EmailSettings>(() => withDefaults(email));
-  const [selected, setSelected] = useState<keyof EmailSettings>("order_placed");
+  const [selected, setSelected] = useState<OrderEmailEvent>("order_placed");
   const [pending, startTransition] = useTransition();
+  const [testing, startTesting] = useTransition();
 
   const active = EMAIL_EVENTS.find((e) => e.key === selected) ?? EMAIL_EVENTS[0];
   const t = form[selected];
@@ -54,6 +78,22 @@ export function EmailForm({ email }: { email: EmailSettings | null }) {
         res.ok
           ? { variant: "success", title: "E-mails salvos" }
           : { variant: "error", title: "Erro", description: res.error },
+      );
+    });
+  }
+
+  /** Envia o modelo aberto, com um pedido fictício, para o e-mail do admin. */
+  function sendTest() {
+    startTesting(async () => {
+      const res = await sendTestEmail(selected);
+      toast(
+        res.ok
+          ? {
+              variant: "success",
+              title: "E-mail de teste enviado",
+              description: `Confira a caixa de entrada de ${res.data}.`,
+            }
+          : { variant: "error", title: "Não foi possível enviar", description: res.error },
       );
     });
   }
@@ -136,6 +176,15 @@ export function EmailForm({ email }: { email: EmailSettings | null }) {
               <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[0.7rem]">
                 {"{{pedido}}"}
               </code>
+              {REASON_EVENTS.includes(selected) && (
+                <>
+                  {" "}
+                  <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[0.7rem]">
+                    {"{{motivo}}"}
+                  </code>{" "}
+                  · O motivo informado ao recusar/cancelar também aparece em destaque no e-mail.
+                </>
+              )}
               {selected === "order_accepted" &&
                 " · Pedidos Pix ganham a chave e o botão de comprovante automaticamente."}
             </p>
@@ -143,9 +192,12 @@ export function EmailForm({ email }: { email: EmailSettings | null }) {
         </Card>
       </div>
 
-      {/* Barra de ações — vale para os três e-mails. */}
+      {/* Barra de ações — vale para todos os e-mails. */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 shadow-sm">
-        <p className="text-xs text-muted-foreground">As alterações valem para os três e-mails.</p>
+        <p className="text-xs text-muted-foreground">
+          Salvar aplica a todos os e-mails. O teste envia o modelo <strong>já salvo</strong> de "
+          {active.label}", com um pedido fictício, para o seu e-mail.
+        </p>
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -155,6 +207,15 @@ export function EmailForm({ email }: { email: EmailSettings | null }) {
             onClick={() => setForm(withDefaults(null))}
           >
             <RotateCcw className="size-3.5" /> Restaurar padrão
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={sendTest}
+            disabled={pending || testing}
+          >
+            <Send className="size-3.5" /> {testing ? "Enviando..." : "Enviar teste para mim"}
           </Button>
           <Button onClick={save} disabled={pending}>
             {pending ? "Salvando..." : "Salvar e-mails"}

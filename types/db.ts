@@ -204,11 +204,21 @@ export interface EmailTemplate {
   intro: string;
 }
 
-/** Textos dos e-mails de pedido, editáveis no admin (settings key='email'). */
+/**
+ * Textos dos e-mails de pedido, editáveis no admin (settings key='email').
+ * Um modelo por evento do fluxo. O status `saiu_entrega` tem dois modelos:
+ * o cliente que retira recebe `order_ready_pickup`; o que recebe em casa,
+ * `order_shipped`.
+ */
 export interface EmailSettings {
   order_placed: EmailTemplate;
   order_accepted: EmailTemplate;
+  order_separated: EmailTemplate;
+  order_ready_pickup: EmailTemplate;
+  order_shipped: EmailTemplate;
   order_delivered: EmailTemplate;
+  order_rejected: EmailTemplate;
+  order_canceled: EmailTemplate;
 }
 
 /** Modo de recebimento do pedido. */

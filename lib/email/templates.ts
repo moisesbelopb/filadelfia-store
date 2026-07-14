@@ -1,4 +1,4 @@
-import { DEFAULT_EMAILS } from "@/lib/email/defaults";
+import { DEFAULT_EMAILS, type OrderEmailEvent, REASON_EVENTS } from "@/lib/email/defaults";
 import { SITE_URL } from "@/lib/env";
 import { formatScheduled } from "@/lib/orders/delivery";
 import { PAYMENT_LABEL } from "@/lib/orders/fsm";
@@ -6,7 +6,7 @@ import { renderTemplate, whatsappLink } from "@/lib/orders/template";
 import { formatBRL } from "@/lib/utils";
 import type { Address, EmailSettings, OrderWithItems, PixSettings } from "@/types/db";
 
-export type OrderEmailEvent = "order_placed" | "order_accepted" | "order_delivered";
+export type { OrderEmailEvent };
 
 const BRAND = "Casa de Filadélfia";
 
@@ -14,7 +14,12 @@ const BRAND = "Casa de Filadélfia";
 const ACCENT: Record<OrderEmailEvent, string> = {
   order_placed: "#141414",
   order_accepted: "#141414",
+  order_separated: "#141414",
+  order_ready_pickup: "#141414",
+  order_shipped: "#141414",
   order_delivered: "#1a7f4b",
+  order_rejected: "#8f3a2f",
+  order_canceled: "#8f3a2f",
 };
 
 /** Escapa texto vindo do usuário/admin antes de interpolar no HTML. */
@@ -84,17 +89,36 @@ function renderPixBlock(order: OrderWithItems, pix: PixSettings): string {
           </table>`;
 }
 
+/** Motivo informado pelo admin ao recusar/cancelar o pedido. */
+function renderReasonBlock(reason: string): string {
+  return `
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+            <tr><td style="background:#fbf1ef;border:1px solid #eccfc9;border-radius:12px;padding:18px 22px;">
+              <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#8f3a2f;margin-bottom:8px;">
+                Motivo
+              </div>
+              <div style="font-size:14px;line-height:1.6;color:#3f3d38;">${esc(reason)}</div>
+            </td></tr>
+          </table>`;
+}
+
 /**
  * Monta o assunto + HTML do e-mail transacional do pedido.
  * Os textos (assunto/título/mensagem) vêm das configurações do admin
- * (opts.templates) com fallback nos padrões; suportam {{cliente}} e {{pedido}}.
+ * (opts.templates) com fallback nos padrões; suportam {{cliente}}, {{pedido}}
+ * e, na recusa/cancelamento, {{motivo}}.
  */
 export function renderOrderEmail(
   event: OrderEmailEvent,
   order: OrderWithItems,
   opts: { pix?: PixSettings | null; templates?: Partial<EmailSettings> | null } = {},
 ): { subject: string; html: string } {
-  const vars = { cliente: order.customer_name, pedido: String(order.order_number) };
+  const reason = order.status_reason?.trim() ?? "";
+  const vars = {
+    cliente: order.customer_name,
+    pedido: String(order.order_number),
+    motivo: reason,
+  };
   const t = { ...DEFAULT_EMAILS[event], ...(opts.templates?.[event] ?? {}) };
   const subject = renderTemplate(t.subject, vars);
   const heading = renderTemplate(t.heading, vars);
@@ -104,6 +128,7 @@ export function renderOrderEmail(
   const showPix =
     event === "order_accepted" && order.payment_method === "pix" && Boolean(opts.pix?.chave);
   const pixBlock = showPix ? renderPixBlock(order, opts.pix as PixSettings) : "";
+  const reasonBlock = REASON_EVENTS.includes(event) && reason ? renderReasonBlock(reason) : "";
 
   const orderUrl = `${SITE_URL}/pedidos/${order.id}`;
   const frete = Number(order.delivery_fee) > 0 ? formatBRL(order.delivery_fee) : "Grátis";
@@ -148,7 +173,7 @@ export function renderOrderEmail(
           <p style="margin:16px 0 24px;font-size:15px;line-height:1.6;color:#3f3d38;">
             Olá, ${esc(order.customer_name)}.<br>${esc(intro)}
           </p>
-
+${reasonBlock}
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 8px;">
             ${rows}
           </table>
