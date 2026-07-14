@@ -130,7 +130,12 @@ export function renderOrderEmail(
   const pixBlock = showPix ? renderPixBlock(order, opts.pix as PixSettings) : "";
   const reasonBlock = REASON_EVENTS.includes(event) && reason ? renderReasonBlock(reason) : "";
 
-  const orderUrl = `${SITE_URL}/pedidos/${order.id}`;
+  // Botão do e-mail: leva ao login já apontando para a área do cliente — o
+  // pedido só é visível autenticado, então mandar direto para /pedidos/:id
+  // esbarraria no login mesmo assim.
+  const accountUrl = `${SITE_URL}/login?redirect=%2Fconta`;
+  // Imagem precisa de URL absoluta e pública (e-mail não enxerga assets locais).
+  const logoUrl = `${SITE_URL}/logo.png`;
   const frete = Number(order.delivery_fee) > 0 ? formatBRL(order.delivery_fee) : "Grátis";
   const pagamento = PAYMENT_LABEL[order.payment_method] ?? order.payment_method;
 
@@ -163,8 +168,11 @@ export function renderOrderEmail(
     <tr><td align="center" style="padding:32px 16px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
 
-        <tr><td style="background:${accent};border-radius:14px 14px 0 0;padding:24px 32px;">
-          <div style="color:#f4f2ec;font-size:12px;letter-spacing:0.22em;text-transform:uppercase;">${BRAND}</div>
+        <tr><td style="background:${accent};border-radius:14px 14px 0 0;height:6px;line-height:6px;font-size:0;">&nbsp;</td></tr>
+
+        <tr><td align="center" style="background:#ffffff;padding:28px 32px 4px;border-bottom:1px solid #f2ede3;">
+          <img src="${logoUrl}" alt="${BRAND}" width="200" height="80"
+               style="display:block;width:200px;max-width:60%;height:auto;border:0;outline:none;text-decoration:none;">
         </td></tr>
 
         <tr><td style="background:#ffffff;padding:32px;">
@@ -197,7 +205,7 @@ ${pixBlock}
             </tr>
           </table>
 
-          <a href="${orderUrl}" style="display:inline-block;background:${accent};color:#f4f2ec;text-decoration:none;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;padding:14px 28px;border-radius:10px;">
+          <a href="${accountUrl}" style="display:inline-block;background:${accent};color:#f4f2ec;text-decoration:none;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;padding:14px 28px;border-radius:10px;">
             Ver meu pedido
           </a>
         </td></tr>
