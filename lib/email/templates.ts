@@ -130,10 +130,10 @@ export function renderOrderEmail(
   const pixBlock = showPix ? renderPixBlock(order, opts.pix as PixSettings) : "";
   const reasonBlock = REASON_EVENTS.includes(event) && reason ? renderReasonBlock(reason) : "";
 
-  // Botão do e-mail: leva ao login já apontando para a área do cliente — o
-  // pedido só é visível autenticado, então mandar direto para /pedidos/:id
-  // esbarraria no login mesmo assim.
-  const accountUrl = `${SITE_URL}/login?redirect=%2Fconta`;
+  // Botão do e-mail: aponta para a área do cliente. Quem já está logado entra
+  // direto; sem sessão, o middleware desvia para /login?redirect=/conta e
+  // devolve o cliente para cá depois de entrar.
+  const accountUrl = `${SITE_URL}/conta`;
   // Imagem precisa de URL absoluta e pública (e-mail não enxerga assets locais).
   const logoUrl = `${SITE_URL}/logo.png`;
   const frete = Number(order.delivery_fee) > 0 ? formatBRL(order.delivery_fee) : "Grátis";
