@@ -94,11 +94,11 @@ export function CustomersList({ customers }: { customers: CustomerRow[] }) {
                   "transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out",
                   // z-10 no hover: o card elevado projeta sombra por cima dos vizinhos.
                   "hover:z-10",
-                  // Salto: eleva e amplia levemente o card sob o ponteiro.
-                  "hover:border-foreground/30 hover:bg-secondary/30 hover:shadow-xl",
-                  "motion-safe:hover:-translate-y-1 motion-safe:hover:scale-[1.015]",
-                  "has-[:focus-visible]:border-foreground/30 has-[:focus-visible]:shadow-xl",
-                  open ? "border-foreground/25 bg-secondary/25 shadow-md" : "border-border",
+                  // Salto suave: eleva e amplia de leve o card sob o ponteiro.
+                  "hover:border-foreground/20 hover:bg-secondary/20 hover:shadow-md",
+                  "motion-safe:hover:-translate-y-0.5 motion-safe:hover:scale-[1.006]",
+                  "has-[:focus-visible]:border-foreground/20 has-[:focus-visible]:shadow-md",
+                  open ? "border-foreground/20 bg-secondary/20 shadow-sm" : "border-border",
                 )}
               >
                 <div className="flex flex-wrap items-center justify-between gap-3 p-4">
