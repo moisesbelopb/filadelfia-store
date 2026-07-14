@@ -90,9 +90,15 @@ export function CustomersList({ customers }: { customers: CustomerRow[] }) {
               <li
                 key={c.id}
                 className={cn(
-                  "rounded-xl border bg-background transition-colors duration-200",
-                  "hover:border-foreground/25 hover:bg-secondary/40",
-                  open ? "border-foreground/25 bg-secondary/25" : "border-border",
+                  "relative transform-gpu rounded-xl border bg-background shadow-sm",
+                  "transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out",
+                  // z-10 no hover: o card elevado projeta sombra por cima dos vizinhos.
+                  "hover:z-10",
+                  // Salto: eleva e amplia levemente o card sob o ponteiro.
+                  "hover:border-foreground/30 hover:bg-secondary/30 hover:shadow-xl",
+                  "motion-safe:hover:-translate-y-1 motion-safe:hover:scale-[1.015]",
+                  "has-[:focus-visible]:border-foreground/30 has-[:focus-visible]:shadow-xl",
+                  open ? "border-foreground/25 bg-secondary/25 shadow-md" : "border-border",
                 )}
               >
                 <div className="flex flex-wrap items-center justify-between gap-3 p-4">
