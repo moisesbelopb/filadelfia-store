@@ -88,6 +88,16 @@ export async function placeOrder(
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) return fail("Falha ao criar o pedido.");
 
+  // Guarda contato/endereço no perfil: pré-preenche o próximo checkout e
+  // alimenta o cadastro de clientes no admin (best-effort — não falha o pedido).
+  try {
+    const profileUpdate: Record<string, unknown> = { whatsapp: d.customerWhatsapp };
+    if (d.fulfillment === "entrega" && d.address) profileUpdate.default_address = d.address;
+    await supabase.from("profiles").update(profileUpdate).eq("id", user.id);
+  } catch {
+    // best-effort
+  }
+
   // E-mail de "pedido recebido" (best-effort — nunca falha o pedido).
   try {
     await dispatchOrderEmail(row.order_id as string, "order_placed");

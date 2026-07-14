@@ -5,6 +5,7 @@ import { demoCategories, demoProducts } from "@/lib/demo-data";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type {
+  Address,
   Category,
   MessageTemplate,
   NotificationLog,
@@ -25,10 +26,21 @@ export interface AdminUserRow {
   created_at: string;
 }
 
+/** Cliente com todos os dados de cadastro + resumo do histórico de compras. */
+export interface CustomerRow extends AdminUserRow {
+  whatsapp: string | null;
+  address: Address | null;
+  ordersCount: number;
+  totalSpent: number;
+  lastOrderAt: string | null;
+}
+
 const roleRank: Record<UserRole, number> = { super_admin: 2, admin: 1, cliente: 0 };
 
-/** Lista usuários (auth) com o papel do profile. Só para admin (usa service role). */
-export async function listUsers(): Promise<AdminUserRow[]> {
+/** Base: usuários do auth + dados completos do profile. Só para admin (service role). */
+async function fetchUsersWithProfiles(): Promise<
+  (AdminUserRow & { whatsapp: string | null; address: Address | null })[]
+> {
   if (!isSupabaseConfigured) return [];
   if (!(await isAdminUser())) return [];
 
@@ -41,25 +53,107 @@ export async function listUsers(): Promise<AdminUserRow[]> {
 
   const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const users = list?.users ?? [];
-  const { data: profiles } = await admin.from("profiles").select("id, full_name, role");
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("id, full_name, role, whatsapp, default_address");
   const byId = new Map((profiles ?? []).map((p) => [p.id, p]));
 
-  return users
-    .map((u) => {
-      const p = byId.get(u.id);
-      // Usuário "banido" (ban_duration) => desativado. banned_until vem do auth.
-      const bannedUntil = (u as { banned_until?: string | null }).banned_until;
-      const active = !bannedUntil || new Date(bannedUntil).getTime() <= Date.now();
+  return users.map((u) => {
+    const p = byId.get(u.id);
+    // Usuário "banido" (ban_duration) => desativado. banned_until vem do auth.
+    const bannedUntil = (u as { banned_until?: string | null }).banned_until;
+    const active = !bannedUntil || new Date(bannedUntil).getTime() <= Date.now();
+    return {
+      id: u.id,
+      email: u.email ?? "—",
+      full_name: (p?.full_name as string | null) ?? null,
+      role: ((p?.role as UserRole) ?? "cliente") satisfies UserRole,
+      active,
+      created_at: u.created_at,
+      whatsapp: (p?.whatsapp as string | null) ?? null,
+      address: (p?.default_address as Address | null) ?? null,
+    };
+  });
+}
+
+/** Apenas ADMINISTRADORES (admin / super_admin) — para o menu "Usuários". */
+export async function listAdminUsers(): Promise<AdminUserRow[]> {
+  const all = await fetchUsersWithProfiles();
+  return all
+    .filter((u) => u.role === "admin" || u.role === "super_admin")
+    .sort((a, b) => roleRank[b.role] - roleRank[a.role]);
+}
+
+/**
+ * Apenas CLIENTES (role = 'cliente') — para o menu "Clientes".
+ * Traz o cadastro completo (nome, e-mail, WhatsApp, endereço) e o resumo de
+ * compras (nº de pedidos, total gasto, último pedido). Mais recentes primeiro.
+ */
+export async function listCustomers(): Promise<CustomerRow[]> {
+  const customers = (await fetchUsersWithProfiles()).filter((u) => u.role === "cliente");
+  if (customers.length === 0) return [];
+
+  let admin: ReturnType<typeof createAdminClient>;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return customers.map((c) => ({ ...c, ordersCount: 0, totalSpent: 0, lastOrderAt: null }));
+  }
+
+  // Agregação em memória: o volume de pedidos é pequeno para esta loja.
+  const { data: orders } = await admin
+    .from("orders")
+    .select("user_id, total, status, created_at, address");
+
+  interface Stat {
+    count: number;
+    total: number;
+    last: string | null;
+    /** Endereço do pedido de ENTREGA mais recente (fallback do cadastro). */
+    lastAddress: Address | null;
+    lastAddressAt: string | null;
+  }
+  const stats = new Map<string, Stat>();
+
+  for (const o of (orders ?? []) as {
+    user_id: string;
+    total: number;
+    status: OrderStatus;
+    created_at: string;
+    address: Address | null;
+  }[]) {
+    const s: Stat = stats.get(o.user_id) ?? {
+      count: 0,
+      total: 0,
+      last: null,
+      lastAddress: null,
+      lastAddressAt: null,
+    };
+    s.count += 1;
+    // Cancelado/recusado não conta como valor comprado.
+    if (o.status !== "cancelado" && o.status !== "recusado") s.total += Number(o.total);
+    if (!s.last || new Date(o.created_at) > new Date(s.last)) s.last = o.created_at;
+    // Retirada não tem endereço; guarda o da entrega mais recente.
+    if (o.address && (!s.lastAddressAt || new Date(o.created_at) > new Date(s.lastAddressAt))) {
+      s.lastAddress = o.address;
+      s.lastAddressAt = o.created_at;
+    }
+    stats.set(o.user_id, s);
+  }
+
+  return customers
+    .map((c) => {
+      const s = stats.get(c.id);
       return {
-        id: u.id,
-        email: u.email ?? "—",
-        full_name: (p?.full_name as string | null) ?? null,
-        role: ((p?.role as UserRole) ?? "cliente") satisfies UserRole,
-        active,
-        created_at: u.created_at,
+        ...c,
+        // Perfil primeiro; se vazio, cai no endereço do último pedido de entrega.
+        address: c.address ?? s?.lastAddress ?? null,
+        ordersCount: s?.count ?? 0,
+        totalSpent: s?.total ?? 0,
+        lastOrderAt: s?.last ?? null,
       };
     })
-    .sort((a, b) => roleRank[b.role] - roleRank[a.role]);
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
 export async function listAdminOrders(status?: OrderStatus, q?: string): Promise<Order[]> {

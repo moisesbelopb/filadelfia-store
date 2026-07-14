@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import {
+  Contact,
   FileClock,
   LayoutDashboard,
   MessageSquare,
@@ -20,6 +21,7 @@ const items = [
   { href: "/admin/pedidos", label: "Pedidos", icon: ScrollText },
   { href: "/admin/produtos", label: "Produtos", icon: Package },
   { href: "/admin/categorias", label: "Categorias", icon: Tags },
+  { href: "/admin/clientes", label: "Clientes", icon: Contact },
   { href: "/admin/usuarios", label: "Usuários", icon: Users },
   { href: "/admin/configuracoes/whatsapp", label: "Comunicação", icon: MessageSquare },
   { href: "/admin/configuracoes/entrega", label: "Entrega", icon: Truck },

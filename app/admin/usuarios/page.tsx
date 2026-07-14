@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { NATIVE_ADMIN_EMAIL, getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
-import { listUsers } from "@/lib/queries/admin";
+import { listAdminUsers } from "@/lib/queries/admin";
 import { Users } from "lucide-react";
 
 /** Iniciais para o avatar (usa o nome; na falta, o e-mail). */
@@ -18,7 +18,7 @@ function initials(name: string | null, email: string): string {
 }
 
 export default async function UsuariosPage() {
-  const [users, me] = await Promise.all([listUsers(), getCurrentUser()]);
+  const [users, me] = await Promise.all([listAdminUsers(), getCurrentUser()]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -26,7 +26,8 @@ export default async function UsuariosPage() {
         <p className="eyebrow">Administração</p>
         <h1 className="mt-1 text-xl font-semibold">Usuários</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Crie e gerencie quem acessa o painel administrativo.
+          Somente quem acessa o <strong>painel administrativo</strong>. Os clientes da loja ficam
+          no menu <strong>Clientes</strong>.
         </p>
       </div>
 
