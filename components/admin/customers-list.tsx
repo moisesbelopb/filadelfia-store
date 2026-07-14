@@ -1,7 +1,6 @@
 "use client";
 
 import { UserActions } from "@/components/admin/user-actions";
-import { UserRoleSelect } from "@/components/admin/user-role-select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { CustomerRow } from "@/lib/queries/admin";
@@ -106,7 +105,6 @@ export function CustomersList({ customers }: { customers: CustomerRow[] }) {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <UserRoleSelect userId={c.id} role={c.role} />
                     <UserActions userId={c.id} active={c.active} />
                   </div>
                 </div>
