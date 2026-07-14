@@ -1,5 +1,6 @@
 "use server";
 
+import { resolvePostLoginPath } from "@/lib/auth";
 import { SITE_URL, isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { isValidPhone, maskPhone, safeRedirectPath, titleCaseName } from "@/lib/utils";
@@ -47,17 +48,8 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) return { error: "E-mail ou senha incorretos." };
 
-  // Administrador entra direto no painel — a menos que tenha vindo de uma
-  // página específica (ex.: checkout), que continua tendo prioridade.
-  let target = safeRedirectPath(formData.get("redirect") as string);
-  if (target === "/" && data.user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", data.user.id)
-      .maybeSingle();
-    if (profile?.role === "admin" || profile?.role === "super_admin") target = "/admin";
-  }
+  const requested = safeRedirectPath(formData.get("redirect") as string);
+  const target = data.user ? await resolvePostLoginPath(data.user.id, requested) : requested;
   redirect(target);
 }
 
@@ -154,16 +146,13 @@ export async function completeProfileAction(
     .from("profiles")
     .update({ full_name: parsed.data.fullName, whatsapp: parsed.data.whatsapp })
     .eq("id", user.id)
-    .select("id, role");
+    .select("id");
   if (error || !data?.length) {
     return { error: "Não foi possível salvar. Tente novamente." };
   }
 
-  // Administrador entra direto no painel (a menos que já haja um destino).
-  let target = safeRedirectPath(formData.get("next") as string);
-  const role = data[0]?.role as string | undefined;
-  if (target === "/" && (role === "admin" || role === "super_admin")) target = "/admin";
-  redirect(target);
+  const requested = safeRedirectPath(formData.get("next") as string);
+  redirect(await resolvePostLoginPath(user.id, requested));
 }
 
 export async function signOutAction(): Promise<void> {

@@ -1,3 +1,4 @@
+import { resolvePostLoginPath } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { safeRedirectPath } from "@/lib/utils";
@@ -29,17 +30,15 @@ export async function GET(request: Request) {
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("whatsapp, role")
+        .select("whatsapp")
         .eq("id", user.id)
         .maybeSingle();
       if (!(profile?.whatsapp ?? "").trim()) {
         return NextResponse.redirect(`${origin}/completar-perfil?next=${encodeURIComponent(next)}`);
       }
-      // Administrador entra direto no painel (a menos que já haja um destino).
-      const isAdmin = profile?.role === "admin" || profile?.role === "super_admin";
-      if (next === "/" && isAdmin) {
-        return NextResponse.redirect(`${origin}/admin`);
-      }
+      // Administrador entra direto no painel (exceto no fluxo de compra).
+      const target = await resolvePostLoginPath(user.id, next);
+      return NextResponse.redirect(`${origin}${target}`);
     }
   }
 

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { isSupabaseConfigured } from "@/lib/env";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/types/db";
 import type { User } from "@supabase/supabase-js";
 
@@ -42,4 +42,27 @@ export const NATIVE_ADMIN_EMAIL = (
 export async function isNativeAdmin(): Promise<boolean> {
   const user = await getCurrentUser();
   return (user?.email ?? "").toLowerCase() === NATIVE_ADMIN_EMAIL;
+}
+
+/**
+ * Destino após o login. Administrador cai direto no painel — inclusive quando
+ * veio de uma página protegida (ex.: clicou em "Minha conta" e foi mandado ao
+ * login). A ÚNICA exceção é o fluxo de compra: se estava indo para o carrinho
+ * ou o checkout, respeitamos o destino para não interromper o pedido.
+ *
+ * Consulta o papel com a service role: não depende de a sessão recém-criada já
+ * estar visível no client desta requisição.
+ */
+export async function resolvePostLoginPath(userId: string, requested: string): Promise<string> {
+  if (requested.startsWith("/carrinho") || requested.startsWith("/checkout")) return requested;
+
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from("profiles").select("role").eq("id", userId).maybeSingle();
+    const role = data?.role as string | undefined;
+    if (role === "admin" || role === "super_admin") return "/admin";
+  } catch {
+    // Sem service role configurada: segue para o destino pedido.
+  }
+  return requested;
 }
