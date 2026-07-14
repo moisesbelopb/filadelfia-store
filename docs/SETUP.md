@@ -115,26 +115,69 @@ use **Enviar teste**.
 
 ## 5. ZeptoMail / Zoho (e-mails do pedido)
 
-E-mails transacionais são enviados ao **cliente** em três momentos:
-**pedido recebido** (ao finalizar), **pedido confirmado** (admin aceita) e
-**pedido entregue**. Usa a Email API do [ZeptoMail](https://www.zoho.com/zeptomail/)
-via `fetch` — sem dependências extras. O e-mail do destinatário vem do cadastro
-(Auth); o checkout não coleta e-mail.
+E-mails transacionais são enviados ao **cliente** em cada etapa do pedido:
+recebido (checkout), confirmado, em separação, pronto para retirada **ou** saiu
+para entrega (conforme `fulfillment_type`), entregue, recusado e cancelado.
+Usa a Email API do [ZeptoMail](https://www.zoho.com/zeptomail/) via `fetch` —
+sem dependências extras. O destinatário vem do cadastro (Auth); o checkout não
+coleta e-mail.
 
-1. Crie/entre no **ZeptoMail** e verifique seu **domínio** (SPF/DKIM).
-2. Crie um **Mail Agent** e copie o **Send Mail Token**
-   (Setup Info → o valor após `Zoho-enczapikey`).
-3. Preencha no `.env.local`:
-   ```dotenv
-   ZEPTOMAIL_TOKEN=<send mail token>
-   ZEPTOMAIL_FROM_EMAIL=pedidos@SEU_DOMINIO   # remetente verificado
-   ZEPTOMAIL_FROM_NAME=Casa de Filadélfia
-   # ZEPTOMAIL_API_URL=https://api.zeptomail.eu/v1.1/email  # só se conta EU
-   ```
+Mapa status → e-mail: `emailEventForStatus()` em `lib/email/defaults.ts`.
+Disparo: `actions/orders.ts` (criação) e `actions/admin/orders.ts` (transições).
+Textos editáveis em **/admin/configuracoes/whatsapp → Comunicação**.
 
-Sem essas variáveis, o envio é silenciosamente ignorado (o pedido nunca falha
-por causa do e-mail). Cada envio fica registrado em `notification_logs`
-(`channel = 'email'`). Templates e cópia dos e-mails: `lib/email/templates.ts`.
+### 5.1 Verificar o domínio no ZeptoMail
+
+O ZeptoMail **não usa mais SPF** para verificar domínio: são **DKIM (TXT)** e
+**CNAME** (return-path dos bounces).
+
+1. Entre em [zeptomail.zoho.com](https://zeptomail.zoho.com) com a conta Zoho do
+   domínio.
+2. **Domains → Add Domain** → informe o domínio → **Add**.
+3. O ZeptoMail mostra um **TXT (DKIM)** e um **CNAME**. Copie host e valor dos dois.
+4. Adicione os registros **onde o DNS do domínio é gerenciado** — confira os
+   nameservers antes (`nslookup -type=NS SEU_DOMINIO`). Não é necessariamente o
+   Registro.br: se os NS apontarem para a hospedagem (ex.: `cns1.odara.com.br`),
+   os registros entram no painel dela (cPanel → *Zone Editor*).
+5. Volte ao ZeptoMail e clique em **Verify**. A propagação leva de minutos a 48h.
+
+> ⚠️ **Só pode existir UM registro SPF** (`v=spf1 …`) por domínio. Dois ou mais
+> geram `PermError` e derrubam a entrega — inclusive a do Zoho Mail. Se houver
+> duplicidade, mescle tudo em um único TXT.
+
+### 5.2 Criar o Mail Agent e pegar o token
+
+1. No ZeptoMail, **Add Agent** → nome, domínio e descrição → **Add**.
+2. Abra o agente → aba **SMTP/API** → copie o **Send Mail Token**.
+3. O painel mostra `Zoho-enczapikey <token>`. Guarde **apenas o token**, sem o
+   prefixo — o código já envia o header `Authorization: Zoho-enczapikey <token>`
+   (`lib/email/zeptomail.ts`).
+
+### 5.3 Configurar as variáveis
+
+Local, em `.env.local`:
+
+```dotenv
+ZEPTOMAIL_TOKEN=<send mail token>
+ZEPTOMAIL_FROM_EMAIL=contato@SEU_DOMINIO   # caixa do domínio verificado
+ZEPTOMAIL_FROM_NAME=Casa de Filadélfia
+# ZEPTOMAIL_API_URL=https://api.zeptomail.eu/v1.1/email  # só se a conta for EU
+```
+
+Produção: repita as mesmas variáveis na **Vercel** (*Settings → Environment
+Variables*, ambiente **Production**) e **refaça o deploy** — variável nova só
+vale no próximo build.
+
+### 5.4 Testar
+
+Em **/admin/configuracoes/whatsapp → Comunicação**, escolha um modelo e clique em
+**Enviar teste para mim**: o e-mail sai com um pedido fictício para o endereço do
+admin logado (`actions/admin/email.ts`). Erro do ZeptoMail (token inválido,
+remetente não verificado…) aparece no toast.
+
+Sem as variáveis, o envio é silenciosamente ignorado (o pedido nunca falha por
+causa do e-mail). Cada envio real fica registrado em `notification_logs`
+(`channel = 'email'`). Templates: `lib/email/templates.ts`.
 
 ## 6. Deploy na Vercel + domínio (Registro.br)
 
