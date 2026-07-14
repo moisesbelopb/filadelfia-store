@@ -35,10 +35,11 @@ export default async function ContaPage() {
         <CardHeader>
           <CardTitle>Olá, {profile.full_name ?? "cliente"}</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-1 text-sm text-muted-foreground">
-          {profile.whatsapp && <p>WhatsApp: {profile.whatsapp}</p>}
-          <p className="capitalize">Perfil: {profile.role.replace("_", " ")}</p>
-        </CardContent>
+        {profile.whatsapp && (
+          <CardContent className="text-sm text-muted-foreground">
+            <p>WhatsApp: {profile.whatsapp}</p>
+          </CardContent>
+        )}
       </Card>
 
       <div className="flex flex-col gap-2">
