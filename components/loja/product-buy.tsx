@@ -114,12 +114,17 @@ export function ProductBuy({ product, variants }: ProductBuyProps) {
           Esgotado
         </Button>
       ) : (
-        <div className="flex items-center gap-3">
-          <QuantityStepper value={qty} onChange={setQty} max={Math.max(1, selected?.stock ?? 1)} />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <QuantityStepper
+            value={qty}
+            onChange={setQty}
+            max={Math.max(1, selected?.stock ?? 1)}
+            className="self-start sm:self-auto"
+          />
           <Button
             onClick={handleAdd}
             size="lg"
-            className="flex-1 uppercase tracking-[0.12em]"
+            className="w-full px-4 text-sm uppercase tracking-[0.06em] sm:w-auto sm:flex-1 sm:px-8 sm:text-base sm:tracking-[0.12em]"
             aria-label={`Adicionar ${product.name} à sacola`}
           >
             {added ? <Check /> : <ShoppingBag />}

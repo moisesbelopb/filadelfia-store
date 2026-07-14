@@ -257,7 +257,8 @@ export function ProductQuickAdd({ product }: { product: ProductWithImages }) {
                       aria-pressed={isActive}
                       className={cn(
                         "flex h-11 min-w-[3rem] items-center justify-center rounded-md border px-3 text-sm font-medium uppercase tracking-wide transition-colors",
-                        out && "cursor-not-allowed border-border text-muted-foreground/40 line-through",
+                        out &&
+                          "cursor-not-allowed border-border text-muted-foreground/40 line-through",
                         !out && isActive && "border-foreground bg-foreground text-background",
                         !out && !isActive && "border-border hover:border-foreground",
                       )}
@@ -274,16 +275,20 @@ export function ProductQuickAdd({ product }: { product: ProductWithImages }) {
                 Esgotado
               </Button>
             ) : (
-              <div className="flex flex-wrap items-center gap-3">
+              // No mobile empilha: o rótulo é longo e não quebra linha
+              // (whitespace-nowrap), então dividir a linha com o seletor de
+              // quantidade cortaria o texto.
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <QuantityStepper
                   value={qty}
                   onChange={setQty}
                   max={Math.max(1, selected?.stock ?? 1)}
+                  className="self-start sm:self-auto"
                 />
                 <Button
                   onClick={handleAdd}
                   size="lg"
-                  className="min-w-[11rem] flex-1 uppercase tracking-[0.1em]"
+                  className="w-full px-4 text-sm uppercase tracking-[0.06em] sm:w-auto sm:min-w-[11rem] sm:flex-1 sm:px-8 sm:text-base sm:tracking-[0.1em]"
                 >
                   {added ? <Check /> : <ShoppingBag />}
                   {added ? "Adicionado" : "Adicionar à sacola"}
