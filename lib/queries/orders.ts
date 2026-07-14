@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import type { Order, OrderItem, OrderWithItems } from "@/types/db";
@@ -15,17 +16,22 @@ export interface MyOrder extends Order {
 }
 
 /**
- * Pedidos do cliente atual (RLS filtra automaticamente), já com os itens e a
- * foto principal de cada produto — a listagem mostra miniaturas, como fazem os
- * grandes e-commerces.
+ * Pedidos do PRÓPRIO usuário, já com os itens e a foto principal de cada produto.
+ *
+ * O filtro por user_id é obrigatório: a policy de SELECT de `orders` é
+ * `user_id = auth.uid() or is_admin()`, então para um admin a RLS devolveria os
+ * pedidos de TODOS os clientes — e esta tela é "Meus pedidos", não o painel.
  */
 export async function getMyOrders(): Promise<MyOrder[]> {
   if (!isSupabaseConfigured) return [];
+  const user = await getCurrentUser();
+  if (!user) return [];
   const supabase = await createClient();
 
   const { data } = await supabase
     .from("orders")
     .select("*, order_items(*)")
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
   const orders = (data as (Order & { order_items: OrderItem[] })[] | null) ?? [];
@@ -67,14 +73,17 @@ export async function getMyOrders(): Promise<MyOrder[]> {
   }));
 }
 
-/** Um pedido do cliente com itens e histórico (RLS garante posse). */
+/** Um pedido do PRÓPRIO usuário, com itens e histórico (mesma regra do getMyOrders). */
 export async function getMyOrder(id: string): Promise<OrderWithItems | null> {
   if (!isSupabaseConfigured) return null;
+  const user = await getCurrentUser();
+  if (!user) return null;
   const supabase = await createClient();
   const { data } = await supabase
     .from("orders")
     .select("*, order_items(*), order_status_history(*)")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
   if (!data) return null;
   const order = data as OrderWithItems;
