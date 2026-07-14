@@ -3,8 +3,8 @@
 import { placeOrder } from "@/actions/orders";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { NameInput } from "@/components/ui/name-input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Select } from "@/components/ui/select";
@@ -398,34 +398,11 @@ export function CheckoutForm({
             <span className="text-xs text-muted-foreground">Total</span>
             <span className="text-lg font-bold">{formatBRL(total)}</span>
           </div>
-          <Button
-            type="submit"
-            size="lg"
-            className="flex-1"
-            disabled={isSubmitting}
-          >
+          <Button type="submit" size="lg" className="flex-1" disabled={isSubmitting}>
             {isSubmitting ? "Enviando..." : "Enviar pedido"}
           </Button>
         </div>
       </div>
     </form>
-  );
-}
-
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label>{label}</Label>
-      {children}
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
   );
 }

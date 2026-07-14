@@ -27,6 +27,16 @@ export async function getProfile(): Promise<Profile | null> {
   return (data as Profile | null) ?? null;
 }
 
+/**
+ * Provedores de login vinculados à conta (ex.: ["email"], ["google"]).
+ * Quem entrou pelo Google não tem senha nem controla o e-mail por aqui.
+ */
+export function authProviders(user: User): string[] {
+  const meta = user.app_metadata as { provider?: string; providers?: string[] };
+  const list = meta?.providers ?? (meta?.provider ? [meta.provider] : []);
+  return list.map((p) => p.toLowerCase());
+}
+
 /** True se o usuário atual é admin/super_admin. */
 export async function isAdminUser(): Promise<boolean> {
   const profile = await getProfile();
