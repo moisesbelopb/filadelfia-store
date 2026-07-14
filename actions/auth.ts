@@ -44,10 +44,21 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   if (!parsed.success) return { error: "Preencha e-mail e senha válidos." };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) return { error: "E-mail ou senha incorretos." };
 
-  redirect(safeRedirectPath(formData.get("redirect") as string));
+  // Administrador entra direto no painel — a menos que tenha vindo de uma
+  // página específica (ex.: checkout), que continua tendo prioridade.
+  let target = safeRedirectPath(formData.get("redirect") as string);
+  if (target === "/" && data.user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .maybeSingle();
+    if (profile?.role === "admin" || profile?.role === "super_admin") target = "/admin";
+  }
+  redirect(target);
 }
 
 const signupSchema = z.object({
@@ -143,12 +154,16 @@ export async function completeProfileAction(
     .from("profiles")
     .update({ full_name: parsed.data.fullName, whatsapp: parsed.data.whatsapp })
     .eq("id", user.id)
-    .select("id");
+    .select("id, role");
   if (error || !data?.length) {
     return { error: "Não foi possível salvar. Tente novamente." };
   }
 
-  redirect(safeRedirectPath(formData.get("next") as string));
+  // Administrador entra direto no painel (a menos que já haja um destino).
+  let target = safeRedirectPath(formData.get("next") as string);
+  const role = data[0]?.role as string | undefined;
+  if (target === "/" && (role === "admin" || role === "super_admin")) target = "/admin";
+  redirect(target);
 }
 
 export async function signOutAction(): Promise<void> {
