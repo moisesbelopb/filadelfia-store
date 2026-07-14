@@ -33,6 +33,37 @@ export function normalizePhone(input: string): string {
 }
 
 /**
+ * Nome próprio: primeira letra de cada palavra em maiúscula, o resto minúsculo.
+ * Ex.: "moises da silva belo" → "Moises Da Silva Belo".
+ * Preserva o comprimento (permite manter o cursor no lugar ao digitar).
+ */
+export function titleCaseName(input: string): string {
+  return input
+    .toLocaleLowerCase("pt-BR")
+    .replace(/(^|[\s'-])(\S)/g, (_m, sep: string, ch: string) => sep + ch.toLocaleUpperCase("pt-BR"));
+}
+
+/**
+ * Máscara de telefone brasileiro: (DD) XXXXX-XXXX (celular, 11 dígitos) ou
+ * (DD) XXXX-XXXX (fixo, 10). Descarta qualquer caractere que não seja dígito —
+ * é isso que impede letras no campo.
+ */
+export function maskPhone(input: string): string {
+  const d = input.replace(/\D/g, "").slice(0, 11);
+  if (d.length === 0) return "";
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+/** True se o telefone tem DDD + número válidos (10 ou 11 dígitos). */
+export function isValidPhone(input: string): boolean {
+  const d = input.replace(/\D/g, "");
+  return d.length === 10 || d.length === 11;
+}
+
+/**
  * Garante que um destino de redirect é um caminho interno (evita open redirect).
  * Aceita só caminhos relativos que começam com "/" e não escapam para outro host
  * ("//evil.com", "/\\evil.com"). Caso contrário, usa o fallback.

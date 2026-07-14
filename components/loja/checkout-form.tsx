@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NameInput } from "@/components/ui/name-input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { findCityFee, upcomingSlots } from "@/lib/orders/delivery";
@@ -196,14 +198,10 @@ export function CheckoutForm({
         </CardHeader>
         <CardContent className="grid gap-3">
           <Field label="Nome completo" error={errors.customerName?.message}>
-            <Input {...register("customerName")} autoComplete="name" />
+            <NameInput {...register("customerName")} />
           </Field>
           <Field label="WhatsApp (com DDD)" error={errors.customerWhatsapp?.message}>
-            <Input
-              {...register("customerWhatsapp")}
-              inputMode="tel"
-              placeholder="(11) 99999-9999"
-            />
+            <PhoneInput {...register("customerWhatsapp")} />
           </Field>
         </CardContent>
       </Card>

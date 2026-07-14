@@ -4,7 +4,7 @@ import { UserActions } from "@/components/admin/user-actions";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { CustomerRow } from "@/lib/queries/admin";
-import { cn, formatBRL } from "@/lib/utils";
+import { cn, formatBRL, maskPhone } from "@/lib/utils";
 import { CalendarDays, Mail, MapPin, Phone, Search, ShoppingBag } from "lucide-react";
 import type { ElementType } from "react";
 import { useMemo, useState } from "react";
@@ -111,7 +111,11 @@ export function CustomersList({ customers }: { customers: CustomerRow[] }) {
 
                 <dl className="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
                   <Info icon={Mail} label="E-mail" value={c.email} />
-                  <Info icon={Phone} label="WhatsApp" value={c.whatsapp || "Não informado"} />
+                  <Info
+                    icon={Phone}
+                    label="WhatsApp"
+                    value={c.whatsapp ? maskPhone(c.whatsapp) : "Não informado"}
+                  />
                   <div className="sm:col-span-2">
                     <Info icon={MapPin} label="Endereço" value={address ?? "Não informado"} />
                   </div>

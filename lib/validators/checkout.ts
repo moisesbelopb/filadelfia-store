@@ -1,3 +1,4 @@
+import { isValidPhone, maskPhone, titleCaseName } from "@/lib/utils";
 import { z } from "zod";
 
 export const addressSchema = z.object({
@@ -25,8 +26,14 @@ const looseAddressSchema = z.object({
 
 export const checkoutSchema = z
   .object({
-    customerName: z.string().min(2, "Informe seu nome"),
-    customerWhatsapp: z.string().min(10, "WhatsApp inválido"),
+    // Mesmos padrões do cadastro: nome com iniciais maiúsculas e WhatsApp
+    // sempre em (DD) XXXXX-XXXX (a máscara já impede letras no campo).
+    customerName: z.string().trim().min(2, "Informe seu nome completo").transform(titleCaseName),
+    customerWhatsapp: z
+      .string()
+      .trim()
+      .refine(isValidPhone, "WhatsApp inválido — use (DD) 9XXXX-XXXX")
+      .transform(maskPhone),
     fulfillment: z.enum(["entrega", "retirada"]),
     // Base solta; a exigência real é no superRefine, só na entrega.
     address: looseAddressSchema.optional(),

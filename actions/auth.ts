@@ -2,7 +2,7 @@
 
 import { SITE_URL, isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
-import { safeRedirectPath } from "@/lib/utils";
+import { isValidPhone, maskPhone, safeRedirectPath, titleCaseName } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -10,14 +10,27 @@ export type AuthState = { error?: string } | undefined;
 
 const NOT_CONFIGURED = "Autenticação indisponível: configure o Supabase em .env.local.";
 
-/** Valida se o WhatsApp tem ao menos 10 dígitos (ignora máscara). */
+// --- Campos padronizados (o servidor normaliza; não confia só no navegador) ---
+
+/** WhatsApp: exige DDD + número (10 ou 11 dígitos) e salva como (DD) XXXXX-XXXX. */
 const whatsappField = z
   .string()
   .trim()
-  .refine((v) => v.replace(/\D/g, "").length >= 10, "WhatsApp inválido (inclua o DDD)");
+  .refine(isValidPhone, "WhatsApp inválido — use (DD) 9XXXX-XXXX")
+  .transform(maskPhone);
+
+/** Nome próprio: salva com a primeira letra de cada palavra em maiúscula. */
+const nameField = z
+  .string()
+  .trim()
+  .min(2, "Informe seu nome completo")
+  .transform(titleCaseName);
+
+/** E-mail: normalizado em minúsculas e validado. */
+const emailField = z.string().trim().toLowerCase().email("E-mail inválido");
 
 const loginSchema = z.object({
-  email: z.string().email("E-mail inválido"),
+  email: emailField,
   password: z.string().min(6, "Senha muito curta"),
 });
 
@@ -38,9 +51,9 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
 }
 
 const signupSchema = z.object({
-  fullName: z.string().min(2, "Informe seu nome"),
+  fullName: nameField,
   whatsapp: whatsappField,
-  email: z.string().email("E-mail inválido"),
+  email: emailField,
   password: z.string().min(6, "A senha precisa de ao menos 6 caracteres"),
 });
 
@@ -101,7 +114,7 @@ export async function googleSignInAction(formData: FormData): Promise<void> {
 }
 
 const completeProfileSchema = z.object({
-  fullName: z.string().min(2, "Informe seu nome"),
+  fullName: nameField,
   whatsapp: whatsappField,
 });
 

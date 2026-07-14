@@ -6,7 +6,9 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NameInput } from "@/components/ui/name-input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { authErrorMessage } from "@/lib/auth-errors";
 import Link from "next/link";
 import { useActionState } from "react";
@@ -40,23 +42,27 @@ export function SignupForm({ redirect, authError }: { redirect?: string; authErr
         {redirect && <input type="hidden" name="redirect" value={redirect} />}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="fullName">Nome completo</Label>
-          <Input id="fullName" name="fullName" autoComplete="name" required />
+          <NameInput id="fullName" name="fullName" required />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="whatsapp">WhatsApp (com DDD)</Label>
-          <Input
-            id="whatsapp"
-            name="whatsapp"
-            type="tel"
-            inputMode="tel"
-            placeholder="(11) 99999-9999"
-            autoComplete="tel"
-            required
-          />
+          <PhoneInput id="whatsapp" name="whatsapp" required />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="email">E-mail</Label>
-          <Input id="email" name="email" type="email" autoComplete="email" required />
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="voce@exemplo.com"
+            // Exige domínio com ponto (o type=email sozinho aceitaria "a@b").
+            pattern="[^@\s]+@[^@\s]+\.[^@\s]{2,}"
+            title="Informe um e-mail válido, como voce@exemplo.com"
+            required
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="password">Senha</Label>
