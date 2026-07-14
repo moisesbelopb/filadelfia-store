@@ -4,9 +4,10 @@ import { type ActionResult, fail, ok } from "@/lib/action-result";
 import { logAudit } from "@/lib/audit";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
+import { CATALOG_TAG } from "@/lib/queries/catalog";
 import { createClient } from "@/lib/supabase/server";
 import { adjustStockSchema } from "@/lib/validators/admin";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 /**
  * Ajuste manual de estoque: entrada (soma) ou ajuste (soma) com registro em
@@ -45,10 +46,15 @@ export async function adjustStock(input: unknown): Promise<ActionResult> {
   });
   if (movErr) return fail(movErr.message);
 
-  await logAudit(user?.id ?? null, "stock.adjust", "product", productId, { type, quantity, reason });
+  await logAudit(user?.id ?? null, "stock.adjust", "product", productId, {
+    type,
+    quantity,
+    reason,
+  });
 
   revalidatePath("/admin/estoque");
   revalidatePath("/admin/produtos");
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok(undefined);
 }

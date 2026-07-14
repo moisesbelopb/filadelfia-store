@@ -4,10 +4,11 @@ import { type ActionResult, fail, ok } from "@/lib/action-result";
 import { logAudit } from "@/lib/audit";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
+import { CATALOG_TAG } from "@/lib/queries/catalog";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
 import { categorySchema, categoryUpdateSchema } from "@/lib/validators/admin";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 async function guard(): Promise<{ ok: false; error: string } | null> {
   if (!isSupabaseConfigured) return fail("Configure o Supabase.");
@@ -57,6 +58,7 @@ export async function createCategory(
   revalidatePath("/admin/produtos");
   revalidatePath("/admin/categorias");
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok(data as { id: string; name: string; slug: string });
 }
 
@@ -83,6 +85,7 @@ export async function updateCategory(id: string, input: unknown): Promise<Action
   revalidatePath("/admin/categorias");
   revalidatePath("/admin/produtos");
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok(undefined);
 }
 
@@ -101,6 +104,7 @@ export async function deleteCategory(id: string): Promise<ActionResult> {
   revalidatePath("/admin/categorias");
   revalidatePath("/admin/produtos");
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok(undefined);
 }
 
@@ -143,5 +147,6 @@ export async function reorderCategory(id: string, direction: "up" | "down"): Pro
 
   revalidatePath("/admin/categorias");
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok(undefined);
 }

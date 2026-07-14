@@ -7,7 +7,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { authProviders, getCurrentUser, getProfile } from "@/lib/auth";
 import { DEFAULT_DELIVERY_SETTINGS } from "@/lib/orders/delivery";
-import { getSetting } from "@/lib/queries/admin";
+import { getDeliverySettings } from "@/lib/queries/public-settings";
 import type { Address, DeliverySettings } from "@/types/db";
 import { ClipboardList, LayoutDashboard, LogIn, LogOut } from "lucide-react";
 import type { Metadata } from "next";
@@ -32,7 +32,7 @@ export default async function ContaPage({
   const [user, profile, delivery, { email: emailFlow }] = await Promise.all([
     getCurrentUser(),
     getProfile(),
-    getSetting<DeliverySettings>("delivery"),
+    getDeliverySettings(),
     searchParams,
   ]);
 

@@ -2,8 +2,7 @@ import { BottomNav } from "@/components/loja/bottom-nav";
 import { SiteFooter } from "@/components/loja/site-footer";
 import { SiteHeader } from "@/components/loja/site-header";
 import { ThemeStyle } from "@/components/theme-style";
-import { getSetting } from "@/lib/queries/admin";
-import type { VisualSettings } from "@/lib/theme";
+import { getVisualSettings } from "@/lib/queries/public-settings";
 import { Suspense } from "react";
 
 export default async function LojaLayout({
@@ -11,7 +10,9 @@ export default async function LojaLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const visual = await getSetting<VisualSettings>("visual");
+  // Cacheado e sem cookies: antes esta única linha ia ao banco em toda página da
+  // loja e, por ler cookies, forçava a vitrine inteira a render dinâmico.
+  const visual = await getVisualSettings();
 
   return (
     <div className="flex min-h-dvh flex-col overflow-x-clip pb-[calc(3.5rem_+_env(safe-area-inset-bottom))] sm:pb-0">

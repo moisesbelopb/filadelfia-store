@@ -32,6 +32,24 @@ export function HeroCarousel({
 
   const go = useCallback((next: number) => setIndex((next + count) % count), [count]);
 
+  /**
+   * Só monta a imagem do slide atual, do próximo (pré-carregado para o fade não
+   * piscar) e dos que já foram vistos. Antes, as 5 <Image> nasciam juntas dentro
+   * da viewport — o lazy loading do next/image não segurava nenhuma, e a home
+   * baixava as 5 fotos do hero no primeiro paint.
+   */
+  const [mounted, setMounted] = useState<Set<number>>(() => new Set([0, 1 % Math.max(count, 1)]));
+  useEffect(() => {
+    setMounted((prev) => {
+      const next = (index + 1) % count;
+      if (prev.has(index) && prev.has(next)) return prev;
+      const s = new Set(prev);
+      s.add(index);
+      s.add(next);
+      return s;
+    });
+  }, [index, count]);
+
   // Autoplay — pausa em hover/foco e quando o usuário prefere menos movimento.
   const reduced = useRef(false);
   useEffect(() => {
@@ -66,16 +84,18 @@ export function HeroCarousel({
             )}
             aria-hidden={i !== index}
           >
-            <Image
-              src={slide.src}
-              alt={slide.alt}
-              fill
-              priority={i === 0}
-              sizes="100vw"
-              quality={90}
-              className="object-cover"
-              style={{ objectPosition: slide.focus ?? "center 25%" }}
-            />
+            {mounted.has(i) && (
+              <Image
+                src={slide.src}
+                alt={slide.alt}
+                fill
+                priority={i === 0}
+                sizes="100vw"
+                quality={82}
+                className="object-cover"
+                style={{ objectPosition: slide.focus ?? "center 25%" }}
+              />
+            )}
           </div>
         ))}
 

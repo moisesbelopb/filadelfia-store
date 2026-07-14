@@ -6,34 +6,34 @@ import Image from "next/image";
 import Link from "next/link";
 
 const CATEGORY_TILES = [
-  { slug: "feminino", label: "Feminino", image: "/products/modelo_mulher_camisa_bege.png" },
-  { slug: "masculino", label: "Masculino", image: "/products/modelo_homem_camisa_preta.png" },
-  { slug: "infantil", label: "Infantil", image: "/products/lifestyle_criancas_brincando.png" },
+  { slug: "feminino", label: "Feminino", image: "/products/modelo_mulher_camisa_bege.webp" },
+  { slug: "masculino", label: "Masculino", image: "/products/modelo_homem_camisa_preta.webp" },
+  { slug: "infantil", label: "Infantil", image: "/products/lifestyle_criancas_brincando.webp" },
 ];
 
 const HERO_SLIDES: HeroSlide[] = [
   {
-    src: "/products/capa_carrossel_limpa.png",
+    src: "/products/capa_carrossel_limpa.webp",
     alt: "Casal com as camisetas Preta (costas) e Off-White (frente) da coleção Multiplicação",
     focus: "center 25%",
   },
   {
-    src: "/products/casal_negro.png",
+    src: "/products/casal_negro.webp",
     alt: "Casal com as camisetas Preta e Off-White da coleção Multiplicação",
     focus: "center 22%",
   },
   {
-    src: "/products/casal_lifestyle.png",
+    src: "/products/casal_lifestyle.webp",
     alt: "Casal no parque com as camisetas da coleção Multiplicação",
     focus: "center 25%",
   },
   {
-    src: "/products/modelo_mulher_camisa_preta.png",
+    src: "/products/modelo_mulher_camisa_preta.webp",
     alt: "Modelo feminina com camiseta Preta da coleção Multiplicação",
     focus: "center 20%",
   },
   {
-    src: "/products/modelo_homem_bege_sentado.png",
+    src: "/products/modelo_homem_bege_sentado.webp",
     alt: "Modelo masculino sentado com camiseta Off-White da coleção Multiplicação",
     focus: "center 30%",
   },
@@ -62,18 +62,12 @@ export default async function HomePage({
       <div className="mx-auto max-w-[1600px] px-4 py-8">
         <header className="mb-6 flex flex-col gap-1">
           <p className="eyebrow">{q ? "Busca" : "Coleção"}</p>
-          <h1 className="section-title">
-            {q ? `“${q}”` : (activeCategory?.name ?? "Produtos")}
-          </h1>
+          <h1 className="section-title">{q ? `“${q}”` : (activeCategory?.name ?? "Produtos")}</h1>
           <p className="text-sm text-muted-foreground">
             {products.length} {products.length === 1 ? "produto" : "produtos"}
           </p>
         </header>
-        {products.length === 0 ? (
-          <EmptyState hasFilter />
-        ) : (
-          <ProductGrid products={products} />
-        )}
+        {products.length === 0 ? <EmptyState hasFilter /> : <ProductGrid products={products} />}
       </div>
     );
   }
@@ -90,7 +84,11 @@ export default async function HomePage({
           <p className="eyebrow">Coleção Multiplicação</p>
           <h2 className="section-title">Novidades</h2>
         </div>
-        {products.length === 0 ? <EmptyState hasFilter={false} /> : <ProductGrid products={products} />}
+        {products.length === 0 ? (
+          <EmptyState hasFilter={false} />
+        ) : (
+          <ProductGrid products={products} />
+        )}
       </section>
 
       <Benefits />

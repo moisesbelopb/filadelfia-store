@@ -4,10 +4,11 @@ import { type ActionResult, fail, ok } from "@/lib/action-result";
 import { logAudit } from "@/lib/audit";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
+import { CATALOG_TAG } from "@/lib/queries/catalog";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
 import { productSchema, productVariantsSchema } from "@/lib/validators/admin";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -53,6 +54,7 @@ export async function createProduct(input: unknown): Promise<ActionResult<{ id: 
 
   revalidatePath("/admin/produtos");
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok({ id: data.id });
 }
 
@@ -89,6 +91,7 @@ export async function updateProduct(id: string, input: unknown): Promise<ActionR
   revalidatePath("/admin/produtos");
   revalidatePath(`/admin/produtos/${id}`);
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok(undefined);
 }
 
@@ -147,6 +150,7 @@ export async function saveProductVariants(
 
   revalidatePath(`/admin/produtos/${productId}`);
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok(undefined);
 }
 
@@ -158,6 +162,7 @@ export async function toggleProductActive(id: string, isActive: boolean): Promis
   if (error) return fail(error.message);
   revalidatePath("/admin/produtos");
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok(undefined);
 }
 
@@ -198,6 +203,7 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
 
   revalidatePath("/admin/produtos");
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok(undefined);
 }
 
@@ -238,6 +244,7 @@ export async function uploadProductImage(
 
   revalidatePath(`/admin/produtos/${productId}`);
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok({ path });
 }
 
@@ -275,6 +282,7 @@ export async function setPrimaryImage(imageId: string, productId: string): Promi
   if (error) return fail(error.message);
   revalidatePath(`/admin/produtos/${productId}`);
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok(undefined);
 }
 
@@ -322,6 +330,7 @@ export async function setHoverImage(imageId: string, productId: string): Promise
 
   revalidatePath(`/admin/produtos/${productId}`);
   revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
   return ok(undefined);
 }
 

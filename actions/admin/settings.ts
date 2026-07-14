@@ -4,6 +4,7 @@ import { type ActionResult, fail, ok } from "@/lib/action-result";
 import { logAudit } from "@/lib/audit";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
+import { SETTINGS_TAG } from "@/lib/queries/public-settings";
 import { createClient } from "@/lib/supabase/server";
 import {
   deliverySettingsSchema,
@@ -12,7 +13,7 @@ import {
   templateSchema,
   visualSettingsSchema,
 } from "@/lib/validators/admin";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 async function guard(): Promise<{ ok: false; error: string } | null> {
   if (!isSupabaseConfigured) return fail("Configure o Supabase.");
@@ -61,6 +62,7 @@ export async function saveDeliverySettings(input: unknown): Promise<ActionResult
   const parsed = deliverySettingsSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Dados inválidos.");
   const res = await upsertSetting("delivery", parsed.data, true);
+  revalidateTag(SETTINGS_TAG);
   revalidatePath("/admin/configuracoes/entrega");
   revalidatePath("/checkout");
   return res;
@@ -89,6 +91,7 @@ export async function saveVisualSettings(input: unknown): Promise<ActionResult> 
   const parsed = visualSettingsSchema.safeParse(input);
   if (!parsed.success) return fail("Dados inválidos.");
   const res = await upsertSetting("visual", parsed.data, true);
+  revalidateTag(SETTINGS_TAG);
   revalidatePath("/admin/configuracoes/visual");
   // Reaplica o tema em toda a loja (layout raiz do storefront).
   revalidatePath("/", "layout");
