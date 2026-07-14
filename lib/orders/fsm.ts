@@ -1,4 +1,4 @@
-import type { OrderStatus } from "@/types/db";
+import type { FulfillmentType, OrderStatus, PaymentMethod } from "@/types/db";
 
 /** Passos "felizes" do fluxo (para a timeline). */
 export const ORDER_STATUS_FLOW: OrderStatus[] = [
@@ -80,3 +80,43 @@ export const PAYMENT_LABEL: Record<string, string> = {
   dinheiro: "Dinheiro na entrega",
   cartao: "Cartão na entrega",
 };
+
+/** Nome curto da forma de pagamento (sem o "quando"). */
+export const PAYMENT_NAME: Record<PaymentMethod, string> = {
+  pix: "Pix",
+  dinheiro: "Dinheiro",
+  cartao: "Cartão (maquininha)",
+};
+
+/**
+ * Forma de pagamento com o momento correto — na RETIRADA não se paga "na
+ * entrega". Ex.: "Pix na retirada", "Cartão (maquininha) na entrega".
+ */
+export function paymentLabel(method: PaymentMethod, fulfillment: FulfillmentType): string {
+  const quando = fulfillment === "retirada" ? "na retirada" : "na entrega";
+  return `${PAYMENT_NAME[method]} ${quando}`;
+}
+
+/**
+ * Frase que diz ao cliente O QUE ESTÁ ACONTECENDO agora (recomendação Baymard:
+ * o status sozinho é ambíguo). Também corrige "saiu para entrega" na retirada.
+ */
+export function statusHeadline(status: OrderStatus, fulfillment: FulfillmentType): string {
+  const retirada = fulfillment === "retirada";
+  switch (status) {
+    case "solicitado":
+      return "Aguardando a confirmação da loja";
+    case "aceito":
+      return "Pedido confirmado — vamos preparar seus itens";
+    case "em_separacao":
+      return "Separando seus itens";
+    case "saiu_entrega":
+      return retirada ? "Pronto para retirada na igreja" : "Saiu para entrega";
+    case "entregue":
+      return retirada ? "Retirado — obrigado!" : "Entregue — obrigado!";
+    case "recusado":
+      return "O pedido não foi aceito";
+    case "cancelado":
+      return "Pedido cancelado";
+  }
+}
