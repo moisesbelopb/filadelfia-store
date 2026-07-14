@@ -141,7 +141,12 @@ export function CustomersList({ customers }: { customers: CustomerRow[] }) {
                   </button>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <UserActions userId={c.id} active={c.active} />
+                    <UserActions
+                      userId={c.id}
+                      active={c.active}
+                      entity="cliente"
+                      ordersCount={c.ordersCount}
+                    />
                   </div>
                 </div>
 

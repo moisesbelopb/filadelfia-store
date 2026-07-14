@@ -24,23 +24,34 @@ export interface AdminUserRow {
   role: UserRole;
   active: boolean;
   created_at: string;
+  /** Nº de pedidos — a confirmação de exclusão avisa que o histórico vai junto. */
+  ordersCount: number;
 }
 
 /** Cliente com todos os dados de cadastro + resumo do histórico de compras. */
 export interface CustomerRow extends AdminUserRow {
   whatsapp: string | null;
   address: Address | null;
-  ordersCount: number;
   totalSpent: number;
   lastOrderAt: string | null;
+}
+
+/** Linha base (auth + profile), antes de somar o histórico de pedidos. */
+interface BaseUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: UserRole;
+  active: boolean;
+  created_at: string;
+  whatsapp: string | null;
+  address: Address | null;
 }
 
 const roleRank: Record<UserRole, number> = { super_admin: 2, admin: 1, cliente: 0 };
 
 /** Base: usuários do auth + dados completos do profile. Só para admin (service role). */
-async function fetchUsersWithProfiles(): Promise<
-  (AdminUserRow & { whatsapp: string | null; address: Address | null })[]
-> {
+async function fetchUsersWithProfiles(): Promise<BaseUser[]> {
   if (!isSupabaseConfigured) return [];
   if (!(await isAdminUser())) return [];
 
@@ -76,44 +87,30 @@ async function fetchUsersWithProfiles(): Promise<
   });
 }
 
-/** Apenas ADMINISTRADORES (admin / super_admin) — para o menu "Usuários". */
-export async function listAdminUsers(): Promise<AdminUserRow[]> {
-  const all = await fetchUsersWithProfiles();
-  return all
-    .filter((u) => u.role === "admin" || u.role === "super_admin")
-    .sort((a, b) => roleRank[b.role] - roleRank[a.role]);
+interface OrderStat {
+  count: number;
+  total: number;
+  last: string | null;
+  /** Endereço do pedido de ENTREGA mais recente (fallback do cadastro). */
+  lastAddress: Address | null;
+  lastAddressAt: string | null;
 }
 
-/**
- * Apenas CLIENTES (role = 'cliente') — para o menu "Clientes".
- * Traz o cadastro completo (nome, e-mail, WhatsApp, endereço) e o resumo de
- * compras (nº de pedidos, total gasto, último pedido). Mais recentes primeiro.
- */
-export async function listCustomers(): Promise<CustomerRow[]> {
-  const customers = (await fetchUsersWithProfiles()).filter((u) => u.role === "cliente");
-  if (customers.length === 0) return [];
+/** Resumo de pedidos por usuário (agregação em memória — volume pequeno). */
+async function fetchOrderStats(): Promise<Map<string, OrderStat>> {
+  const stats = new Map<string, OrderStat>();
+  if (!isSupabaseConfigured) return stats;
 
   let admin: ReturnType<typeof createAdminClient>;
   try {
     admin = createAdminClient();
   } catch {
-    return customers.map((c) => ({ ...c, ordersCount: 0, totalSpent: 0, lastOrderAt: null }));
+    return stats;
   }
 
-  // Agregação em memória: o volume de pedidos é pequeno para esta loja.
   const { data: orders } = await admin
     .from("orders")
     .select("user_id, total, status, created_at, address");
-
-  interface Stat {
-    count: number;
-    total: number;
-    last: string | null;
-    /** Endereço do pedido de ENTREGA mais recente (fallback do cadastro). */
-    lastAddress: Address | null;
-    lastAddressAt: string | null;
-  }
-  const stats = new Map<string, Stat>();
 
   for (const o of (orders ?? []) as {
     user_id: string;
@@ -122,7 +119,7 @@ export async function listCustomers(): Promise<CustomerRow[]> {
     created_at: string;
     address: Address | null;
   }[]) {
-    const s: Stat = stats.get(o.user_id) ?? {
+    const s: OrderStat = stats.get(o.user_id) ?? {
       count: 0,
       total: 0,
       last: null,
@@ -140,8 +137,27 @@ export async function listCustomers(): Promise<CustomerRow[]> {
     }
     stats.set(o.user_id, s);
   }
+  return stats;
+}
 
-  return customers
+/** Apenas ADMINISTRADORES (admin / super_admin) — para o menu "Usuários". */
+export async function listAdminUsers(): Promise<AdminUserRow[]> {
+  const [all, stats] = await Promise.all([fetchUsersWithProfiles(), fetchOrderStats()]);
+  return all
+    .filter((u) => u.role === "admin" || u.role === "super_admin")
+    .map((u) => ({ ...u, ordersCount: stats.get(u.id)?.count ?? 0 }))
+    .sort((a, b) => roleRank[b.role] - roleRank[a.role]);
+}
+
+/**
+ * Apenas CLIENTES (role = 'cliente') — para o menu "Clientes".
+ * Traz o cadastro completo (nome, e-mail, WhatsApp, endereço) e o resumo de
+ * compras (nº de pedidos, total gasto, último pedido). Mais recentes primeiro.
+ */
+export async function listCustomers(): Promise<CustomerRow[]> {
+  const [all, stats] = await Promise.all([fetchUsersWithProfiles(), fetchOrderStats()]);
+  return all
+    .filter((u) => u.role === "cliente")
     .map((c) => {
       const s = stats.get(c.id);
       return {

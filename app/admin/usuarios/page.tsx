@@ -87,7 +87,9 @@ export default async function UsuariosPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <UserRoleSelect userId={u.id} role={u.role} disabled={isSelf} />
-                      {canManage && <UserActions userId={u.id} active={u.active} />}
+                      {canManage && (
+                        <UserActions userId={u.id} active={u.active} ordersCount={u.ordersCount} />
+                      )}
                     </div>
                   </li>
                 );

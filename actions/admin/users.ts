@@ -157,25 +157,67 @@ export async function deleteUser(input: unknown): Promise<ActionResult> {
     return fail("O administrador nativo não pode ser excluído.");
   }
 
-  // Pedidos referenciam o usuário (FK RESTRICT) — preserva o histórico.
-  const { count } = await admin
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle();
+  const role = (profile?.role as string | undefined) ?? "cliente";
+
+  // Pedidos: FK RESTRICT no profile, então precisam sair antes. Apagar o pedido
+  // remove itens/histórico em cascata (movimentos e notificações ficam com o
+  // vínculo nulo). A confirmação na tela avisa que o histórico vai junto.
+  const { data: orders } = await admin
     .from("orders")
-    .select("id", { count: "exact", head: true })
+    .select("id, status, order_items(variant_id, quantity)")
     .eq("user_id", userId);
-  if ((count ?? 0) > 0) {
-    return fail(
-      "Este usuário tem pedidos e não pode ser excluído (o histórico é preservado). Desative-o para bloquear o acesso.",
-    );
+
+  // Pedidos ATIVOS ainda seguram estoque reservado (a baixa acontece na criação
+  // e só volta em cancelado/recusado). Devolvemos antes de apagar, senão o
+  // estoque some junto com o pedido.
+  const RESERVED_STATUSES = ["solicitado", "aceito", "em_separacao", "saiu_entrega"];
+  const restock = new Map<string, number>();
+  for (const o of (orders ?? []) as {
+    id: string;
+    status: string;
+    order_items: { variant_id: string | null; quantity: number }[] | null;
+  }[]) {
+    if (!RESERVED_STATUSES.includes(o.status)) continue;
+    for (const item of o.order_items ?? []) {
+      if (!item.variant_id) continue;
+      restock.set(item.variant_id, (restock.get(item.variant_id) ?? 0) + item.quantity);
+    }
+  }
+  for (const [variantId, qty] of restock) {
+    const { data: v } = await admin
+      .from("product_variants")
+      .select("stock")
+      .eq("id", variantId)
+      .maybeSingle();
+    if (v) {
+      // O trigger sync_product_stock recalcula products.stock a partir daqui.
+      await admin
+        .from("product_variants")
+        .update({ stock: Number(v.stock) + qty })
+        .eq("id", variantId);
+    }
+  }
+
+  const ordersDeleted = orders?.length ?? 0;
+  if (ordersDeleted > 0) {
+    const { error: oErr } = await admin.from("orders").delete().eq("user_id", userId);
+    if (oErr) return fail("Não foi possível excluir o histórico de pedidos.");
   }
 
   const { error } = await admin.auth.admin.deleteUser(userId);
-  if (error) {
-    return fail(
-      "Não foi possível excluir. Se o usuário tiver pedidos vinculados, desative-o em vez de excluir.",
-    );
-  }
+  if (error) return fail("Não foi possível concluir a exclusão.");
 
-  await logAudit(actor?.id ?? null, "user.delete", "user", userId, { email, name });
+  await logAudit(actor?.id ?? null, "user.delete", "user", userId, {
+    email,
+    name,
+    role,
+    ordersDeleted,
+  });
   revalidatePath("/admin/usuarios");
   return ok(undefined);
 }

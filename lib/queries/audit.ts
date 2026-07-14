@@ -39,8 +39,13 @@ function describe(
       return `Desativou o usuário${t || (meta?.email ? ` ${String(meta.email)}` : "")}`;
     case "user.activate":
       return `Reativou o usuário${t || (meta?.email ? ` ${String(meta.email)}` : "")}`;
-    case "user.delete":
-      return `Excluiu o usuário ${String(meta?.name || meta?.email || "removido")}`;
+    case "user.delete": {
+      const quem = meta?.role === "cliente" ? "cliente" : "usuário";
+      const alvo = String(meta?.name || meta?.email || "removido");
+      const n = Number(meta?.ordersDeleted ?? 0);
+      const pedidos = n > 0 ? ` (com ${n} ${n === 1 ? "pedido" : "pedidos"} do histórico)` : "";
+      return `Excluiu o ${quem} ${alvo}${pedidos}`;
+    }
     case "product.create":
       return `Criou o produto${t}`;
     case "product.update":

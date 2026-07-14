@@ -7,12 +7,30 @@ import { Ban, CircleCheck, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-/** Desativar/reativar e excluir um usuário. `canDelete` some p/ quem tem pedidos? não —
- * a exclusão é tentada e o servidor bloqueia com mensagem clara se houver pedidos. */
-export function UserActions({ userId, active }: { userId: string; active: boolean }) {
+/**
+ * Desativar/reativar e excluir uma conta.
+ *
+ * `entity` define o texto ("cliente" no menu Clientes, "usuário" no de admins).
+ * `ordersCount` faz a confirmação avisar que o histórico de pedidos será
+ * apagado junto — a exclusão é permitida mesmo com pedidos.
+ */
+export function UserActions({
+  userId,
+  active,
+  entity = "usuário",
+  ordersCount = 0,
+}: {
+  userId: string;
+  active: boolean;
+  entity?: "usuário" | "cliente";
+  ordersCount?: number;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
+
+  const Entity = entity.charAt(0).toUpperCase() + entity.slice(1);
+  const hasOrders = ordersCount > 0;
 
   function toggleActive() {
     startTransition(async () => {
@@ -23,7 +41,7 @@ export function UserActions({ userId, active }: { userId: string; active: boolea
       }
       toast({
         variant: "success",
-        title: active ? "Usuário desativado" : "Usuário reativado",
+        title: active ? `${Entity} desativado` : `${Entity} reativado`,
       });
       router.refresh();
     });
@@ -37,7 +55,13 @@ export function UserActions({ userId, active }: { userId: string; active: boolea
         setConfirming(false);
         return;
       }
-      toast({ variant: "success", title: "Usuário excluído" });
+      toast({
+        variant: "success",
+        title: `${Entity} excluído`,
+        description: hasOrders
+          ? `O cadastro e ${ordersCount} ${ordersCount === 1 ? "pedido" : "pedidos"} do histórico foram apagados.`
+          : undefined,
+      });
       setConfirming(false);
       router.refresh();
     });
@@ -45,14 +69,28 @@ export function UserActions({ userId, active }: { userId: string; active: boolea
 
   if (confirming) {
     return (
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs text-muted-foreground">Excluir de vez?</span>
-        <Button variant="destructive" size="sm" onClick={doDelete} disabled={pending}>
-          {pending ? "Excluindo…" : "Sim, excluir"}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={pending}>
-          Cancelar
-        </Button>
+      <div className="flex w-full flex-col items-start gap-2 sm:w-auto sm:items-end">
+        <p className="max-w-xs text-xs text-destructive sm:text-right">
+          {hasOrders ? (
+            <>
+              Excluir este {entity} também vai apagar{" "}
+              <strong>
+                {ordersCount} {ordersCount === 1 ? "pedido" : "pedidos"}
+              </strong>{" "}
+              do histórico. Deseja continuar?
+            </>
+          ) : (
+            <>Excluir este {entity} definitivamente? Esta ação não pode ser desfeita.</>
+          )}
+        </p>
+        <div className="flex items-center gap-1.5">
+          <Button variant="destructive" size="sm" onClick={doDelete} disabled={pending}>
+            {pending ? "Excluindo…" : hasOrders ? "Sim, excluir tudo" : "Sim, excluir"}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={pending}>
+            Cancelar
+          </Button>
+        </div>
       </div>
     );
   }
