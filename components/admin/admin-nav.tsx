@@ -27,22 +27,15 @@ const items = [
   { href: "/admin/configuracoes/whatsapp", label: "Comunicação", icon: MessageSquare },
   { href: "/admin/configuracoes/entrega", label: "Entrega", icon: Truck },
   { href: "/admin/configuracoes/visual", label: "Visual", icon: Palette },
+  { href: "/admin/conta", label: "Minha conta", icon: UserCog },
 ];
 
-/** `showLogs`/`showAccount` só são true para o dono do sistema. */
-export function AdminNav({
-  showLogs = false,
-  showAccount = false,
-}: {
-  showLogs?: boolean;
-  showAccount?: boolean;
-}) {
+/** `showLogs` só é true para o dono do sistema (logs de acesso). */
+export function AdminNav({ showLogs = false }: { showLogs?: boolean }) {
   const pathname = usePathname();
-  const navItems = [
-    ...items,
-    ...(showAccount ? [{ href: "/admin/conta", label: "Minha conta", icon: UserCog }] : []),
-    ...(showLogs ? [{ href: "/admin/logs", label: "Logs de acesso", icon: FileClock }] : []),
-  ];
+  const navItems = showLogs
+    ? [...items, { href: "/admin/logs", label: "Logs de acesso", icon: FileClock }]
+    : items;
   return (
     <nav className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
       {navItems.map((item) => {

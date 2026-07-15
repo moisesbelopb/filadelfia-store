@@ -2,7 +2,7 @@
 
 import { type ActionResult, fail, ok } from "@/lib/action-result";
 import { logAudit } from "@/lib/audit";
-import { getCurrentUser, isOwner } from "@/lib/auth";
+import { getCurrentUser, isAdminUser, isOwnerUser } from "@/lib/auth";
 import { SUPABASE_ANON_KEY_SAFE, SUPABASE_URL_SAFE, isSupabaseConfigured } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/server";
 import { changeEmailSchema, changePasswordSchema } from "@/lib/validators/admin";
@@ -25,10 +25,10 @@ async function passwordIsValid(email: string, password: string): Promise<boolean
   return !error;
 }
 
-/** Troca a senha do dono do sistema (exige a senha atual). Só o dono. */
+/** Troca a própria senha (exige a senha atual). Qualquer administrador. */
 export async function changeMyPassword(input: unknown): Promise<ActionResult> {
   if (!isSupabaseConfigured) return fail("Configure o Supabase.");
-  if (!(await isOwner())) return fail("Acesso negado.");
+  if (!(await isAdminUser())) return fail("Acesso negado.");
 
   const parsed = changePasswordSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Dados inválidos.");
@@ -55,10 +55,10 @@ export async function changeMyPassword(input: unknown): Promise<ActionResult> {
   return ok(undefined);
 }
 
-/** Troca o e-mail do dono do sistema (exige a senha atual). Só o dono. */
+/** Troca o próprio e-mail (exige a senha atual). Qualquer administrador. */
 export async function changeMyEmail(input: unknown): Promise<ActionResult<string>> {
   if (!isSupabaseConfigured) return fail("Configure o Supabase.");
-  if (!(await isOwner())) return fail("Acesso negado.");
+  if (!(await isAdminUser())) return fail("Acesso negado.");
 
   const parsed = changeEmailSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Dados inválidos.");
@@ -82,14 +82,18 @@ export async function changeMyEmail(input: unknown): Promise<ActionResult<string
     return fail("Service role não configurada (SUPABASE_SERVICE_ROLE_KEY).");
   }
 
-  // Grava a flag de dono junto com o novo e-mail: o status de dono passa a ser
-  // reconhecido pela flag (não mais pelo e-mail), então o dono continua dono
-  // mesmo com o e-mail diferente do NATIVE_ADMIN_EMAIL do ambiente.
-  const { error } = await admin.auth.admin.updateUserById(user.id, {
+  // Se quem troca é o DONO, grava a flag de dono junto com o novo e-mail: o
+  // status passa a ser reconhecido pela flag (não mais pelo e-mail), então o
+  // dono continua dono mesmo com e-mail diferente do NATIVE_ADMIN_EMAIL. Para
+  // um admin comum, não mexemos em app_metadata.
+  const attrs: { email: string; email_confirm: boolean; app_metadata?: Record<string, unknown> } = {
     email: newEmail,
     email_confirm: true,
-    app_metadata: { ...(user.app_metadata ?? {}), is_owner: true },
-  });
+  };
+  if (isOwnerUser(user)) {
+    attrs.app_metadata = { ...(user.app_metadata ?? {}), is_owner: true };
+  }
+  const { error } = await admin.auth.admin.updateUserById(user.id, attrs);
   if (error) {
     const dup = /registered|already|exist|unique/i.test(error.message);
     return fail(

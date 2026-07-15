@@ -22,8 +22,8 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  // "Logs de acesso" e "Minha conta" só aparecem para o dono do sistema.
-  const owner = isSupabaseConfigured && (await isOwner());
+  // "Logs de acesso" só aparece para o dono do sistema.
+  const showLogs = isSupabaseConfigured && (await isOwner());
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -64,7 +64,7 @@ export default async function AdminLayout({
         <aside className="lg:w-56 lg:shrink-0 lg:border-r lg:border-border lg:pr-6 print:hidden">
           <div className="lg:sticky lg:top-20">
             <p className="eyebrow mb-3 hidden px-1 lg:block">Navegação</p>
-            <AdminNav showLogs={owner} showAccount={owner} />
+            <AdminNav showLogs={showLogs} />
           </div>
         </aside>
         <main className="min-w-0 flex-1">{children}</main>

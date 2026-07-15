@@ -43,8 +43,9 @@ export async function isAdminUser(): Promise<boolean> {
   return profile?.role === "admin" || profile?.role === "super_admin";
 }
 
-/** True se o usuário atual é super administrador. */
+/** True se o usuário atual é super administrador. O dono é SEMPRE super admin. */
 export async function isSuperAdmin(): Promise<boolean> {
+  if (isOwnerUser(await getCurrentUser())) return true;
   const profile = await getProfile();
   return profile?.role === "super_admin";
 }

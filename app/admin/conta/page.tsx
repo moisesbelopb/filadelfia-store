@@ -1,8 +1,7 @@
 import { AccountForm } from "@/components/admin/account-form";
-import { getCurrentUser, isOwner } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 
 export const metadata: Metadata = { title: "Minha conta" };
 
@@ -10,9 +9,8 @@ export const metadata: Metadata = { title: "Minha conta" };
 export const dynamic = "force-dynamic";
 
 export default async function ContaPage() {
-  // Só o dono do sistema gerencia as próprias credenciais.
-  if (isSupabaseConfigured && !(await isOwner())) redirect("/admin");
-
+  // O layout de /admin já garante que só administradores chegam aqui; cada um
+  // gerencia apenas as próprias credenciais.
   const user = await getCurrentUser();
   const email = user?.email ?? "";
 
