@@ -13,7 +13,7 @@ export default function AuthLayout({
         {/* Imagem + escurecimento dissolvem na direita (mask) revelando o off-white: transição sem emenda */}
         <div className="absolute inset-0 [-webkit-mask-image:linear-gradient(to_right,#000000ff_66%,#000000f0_76%,#00000099_87%,#00000038_94%,#00000000)] [mask-image:linear-gradient(to_right,#000000ff_66%,#000000f0_76%,#00000099_87%,#00000038_94%,#00000000)]">
           <Image
-            src="/products/modelo_mulher_camisa_preta.png"
+            src="/products/modelo_mulher_camisa_preta.webp"
             alt="Coleção Multiplicação — Casa de Filadélfia"
             fill
             priority
