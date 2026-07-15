@@ -63,14 +63,14 @@ export default async function AdminDashboard({
           value={deliveries.count}
           icon={PackageCheck}
           tone="success"
-          href="/admin/entregas"
+          href="/admin/configuracoes/entrega"
         />
         <Stat
           label="Taxas de entrega (motoboy)"
           value={formatBRL(deliveries.fees)}
           icon={Banknote}
           tone="warning"
-          href="/admin/entregas"
+          href="/admin/configuracoes/entrega"
         />
         <Stat
           label="Pedidos cancelados"

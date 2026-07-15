@@ -12,8 +12,16 @@ import { DEFAULT_DELIVERY_SETTINGS, WEEKDAYS } from "@/lib/orders/delivery";
 import { toast } from "@/lib/use-toast";
 import { cn } from "@/lib/utils";
 import type { CityFee, DeliverySettings, DeliverySlot } from "@/types/db";
-import { AlertTriangle, CalendarClock, Church, Plus, Trash2, Truck } from "lucide-react";
-import type { ComponentType } from "react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  Church,
+  ClipboardList,
+  Plus,
+  Trash2,
+  Truck,
+} from "lucide-react";
+import type { ComponentType, ReactNode } from "react";
 import { useState, useTransition } from "react";
 
 const money = (v: string) => Math.max(0, Number(v.replace(",", ".")) || 0);
@@ -38,9 +46,20 @@ function normalize(settings: DeliverySettings | null): DeliverySettings {
   };
 }
 
-export function DeliveryForm({ settings }: { settings: DeliverySettings | null }) {
+export function DeliveryForm({
+  settings,
+  report,
+}: {
+  settings: DeliverySettings | null;
+  /** Conteúdo da aba "Relatórios" (renderizado no servidor e passado como slot). */
+  report?: ReactNode;
+}) {
   const [form, setForm] = useState<DeliverySettings>(() => normalize(settings));
   const [pending, startTransition] = useTransition();
+  // "Relatórios" é a primeira aba (padrão). Controlada para esconder a barra de
+  // salvar quando o relatório está ativo (lá não se salva nada).
+  const [tab, setTab] = useState("relatorios");
+  const isSettingsTab = tab === "entrega" || tab === "retirada";
 
   const patch = (p: Partial<DeliverySettings>) => setForm((f) => ({ ...f, ...p }));
 
@@ -63,7 +82,7 @@ export function DeliveryForm({ settings }: { settings: DeliverySettings | null }
 
   return (
     <div className="flex flex-col gap-6 pb-4">
-      {nothingOn && (
+      {nothingOn && isSettingsTab && (
         <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-foreground">
           <AlertTriangle className="size-4 shrink-0 text-warning" />
           Nenhum modo ativo — ative Entrega ou Retirada para os clientes conseguirem finalizar
@@ -71,8 +90,11 @@ export function DeliveryForm({ settings }: { settings: DeliverySettings | null }
         </div>
       )}
 
-      <Tabs defaultValue="entrega">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
+          <TabsTrigger value="relatorios">
+            <ClipboardList className="size-4" /> Relatórios
+          </TabsTrigger>
           <TabsTrigger value="entrega">
             <Truck className="size-4" /> Entrega <StatusDot on={form.deliveryEnabled} />
           </TabsTrigger>
@@ -80,6 +102,9 @@ export function DeliveryForm({ settings }: { settings: DeliverySettings | null }
             <Church className="size-4" /> Retirada <StatusDot on={form.pickupEnabled} />
           </TabsTrigger>
         </TabsList>
+
+        {/* ---------- RELATÓRIOS ---------- */}
+        <TabsContent value="relatorios">{report}</TabsContent>
 
         {/* ---------- ENTREGA ---------- */}
         <TabsContent value="entrega" className="flex flex-col gap-4">
@@ -224,47 +249,52 @@ export function DeliveryForm({ settings }: { settings: DeliverySettings | null }
         </TabsContent>
       </Tabs>
 
-      {/* Compartilhado pelos dois modos */}
-      <Card>
-        <CardHeader className="flex-row items-center gap-3 border-b border-border/70 pb-4">
-          <IconChip icon={CalendarClock} />
-          <div className="min-w-0">
-            <CardTitle className="text-base">Agendamento</CardTitle>
-            <CardDescription>Vale para entrega e retirada.</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4 sm:pt-6">
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-sm">Agendar com até</Label>
-            <div className="relative w-40">
-              <Input
-                inputMode="numeric"
-                className="pr-12"
-                value={String(form.leadDays)}
-                onChange={(e) =>
-                  patch({ leadDays: Math.min(60, Math.max(1, Number(e.target.value) || 1)) })
-                }
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                dias
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              O cliente vê as próximas datas disponíveis dentro desse período.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Agendamento + salvar: só nas abas de configuração (não no relatório). */}
+      {isSettingsTab && (
+        <>
+          {/* Compartilhado pelos dois modos */}
+          <Card>
+            <CardHeader className="flex-row items-center gap-3 border-b border-border/70 pb-4">
+              <IconChip icon={CalendarClock} />
+              <div className="min-w-0">
+                <CardTitle className="text-base">Agendamento</CardTitle>
+                <CardDescription>Vale para entrega e retirada.</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4 sm:pt-6">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-sm">Agendar com até</Label>
+                <div className="relative w-40">
+                  <Input
+                    inputMode="numeric"
+                    className="pr-12"
+                    value={String(form.leadDays)}
+                    onChange={(e) =>
+                      patch({ leadDays: Math.min(60, Math.max(1, Number(e.target.value) || 1)) })
+                    }
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    dias
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  O cliente vê as próximas datas disponíveis dentro desse período.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Barra de salvar fixa */}
-      <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-t-xl border-t border-border bg-background/85 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <p className="hidden text-xs text-muted-foreground sm:block">
-          As mudanças valem no checkout logo após salvar.
-        </p>
-        <Button onClick={save} disabled={pending} className="w-full sm:w-fit">
-          {pending ? "Salvando..." : "Salvar configuração"}
-        </Button>
-      </div>
+          {/* Barra de salvar fixa */}
+          <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-t-xl border-t border-border bg-background/85 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+            <p className="hidden text-xs text-muted-foreground sm:block">
+              As mudanças valem no checkout logo após salvar.
+            </p>
+            <Button onClick={save} disabled={pending} className="w-full sm:w-fit">
+              {pending ? "Salvando..." : "Salvar configuração"}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
