@@ -11,6 +11,7 @@ import {
   ScrollText,
   Tags,
   Truck,
+  UserCog,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,6 +27,7 @@ const items = [
   { href: "/admin/configuracoes/whatsapp", label: "Comunicação", icon: MessageSquare },
   { href: "/admin/configuracoes/entrega", label: "Entrega", icon: Truck },
   { href: "/admin/configuracoes/visual", label: "Visual", icon: Palette },
+  { href: "/admin/conta", label: "Minha conta", icon: UserCog },
 ];
 
 /** `showLogs` só é true para o administrador nativo (dono dos logs de acesso). */

@@ -143,6 +143,30 @@ export const createUserSchema = z.object({
 });
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 
+/** Troca da própria senha (exige a senha atual para reautenticar). */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Informe a senha atual"),
+    newPassword: z.string().min(8, "A nova senha precisa de ao menos 8 caracteres"),
+    confirmPassword: z.string().min(1, "Confirme a nova senha"),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "As senhas não conferem",
+  })
+  .refine((d) => d.newPassword !== d.currentPassword, {
+    path: ["newPassword"],
+    message: "A nova senha deve ser diferente da atual",
+  });
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/** Troca do próprio e-mail (exige a senha atual para reautenticar). */
+export const changeEmailSchema = z.object({
+  currentPassword: z.string().min(1, "Informe a senha atual"),
+  newEmail: z.string().trim().toLowerCase().email("E-mail inválido"),
+});
+export type ChangeEmailInput = z.infer<typeof changeEmailSchema>;
+
 export const setRoleSchema = z.object({
   userId: z.string().uuid(),
   role: z.enum(["cliente", "admin", "super_admin"]),
