@@ -295,7 +295,13 @@ export async function listCategoriesWithCounts(): Promise<CategoryWithCount[]> {
 
 const LOW_STOCK_THRESHOLD = 5;
 
-export async function getDashboardData() {
+/** Intervalo de tempo (ISO) para recortar os números do dashboard por criação. */
+export interface DashboardRange {
+  start: string;
+  end: string;
+}
+
+export async function getDashboardData(range?: DashboardRange) {
   if (!isSupabaseConfigured) {
     // Sem pedidos demo, mas o estoque baixo espelha o catálogo da loja.
     const lowStock = demoProducts
@@ -305,13 +311,19 @@ export async function getDashboardData() {
     return {
       counts: { solicitado: 0, andamento: 0, entregue: 0 },
       revenueExpected: 0,
+      ordersTotal: 0,
       lowStock,
       recent: [] as Order[],
     };
   }
   const supabase = await createClient();
+  // Pedidos recortados pelo período (por data de criação); estoque baixo é sempre atual.
+  let ordersQuery = supabase.from("orders").select("id, status, total, created_at, order_number");
+  if (range) {
+    ordersQuery = ordersQuery.gte("created_at", range.start).lte("created_at", range.end);
+  }
   const [{ data: orders }, { data: low }] = await Promise.all([
-    supabase.from("orders").select("id, status, total, created_at, order_number"),
+    ordersQuery,
     supabase
       .from("products")
       .select("id, name, stock")
@@ -338,6 +350,7 @@ export async function getDashboardData() {
   return {
     counts,
     revenueExpected,
+    ordersTotal: all.length,
     lowStock: (low as { id: string; name: string; stock: number }[] | null) ?? [],
     recent,
   };

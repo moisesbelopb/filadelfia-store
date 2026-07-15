@@ -1,7 +1,10 @@
 import { OrderStatusBadge } from "@/components/loja/order-status-badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { type PeriodKey, resolvePeriod } from "@/lib/dashboard-period";
 import { getDashboardData } from "@/lib/queries/admin";
-import { formatBRL, formatDateTime } from "@/lib/utils";
+import { cn, formatBRL, formatDateTime } from "@/lib/utils";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -14,15 +17,32 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export default async function AdminDashboard() {
-  const { counts, revenueExpected, lowStock, recent } = await getDashboardData();
+// Depende do período/searchParams e da data atual — sempre dinâmico.
+export const dynamic = "force-dynamic";
+
+export default async function AdminDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
+}) {
+  const { period: periodRaw, from, to } = await searchParams;
+  const range = resolvePeriod(periodRaw, from, to);
+  const { counts, revenueExpected, ordersTotal, lowStock, recent } = await getDashboardData({
+    start: range.start,
+    end: range.end,
+  });
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <p className="eyebrow">Painel</p>
         <h1 className="section-title">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">
+          {range.label} · {ordersTotal} {ordersTotal === 1 ? "pedido" : "pedidos"}
+        </p>
       </div>
+
+      <PeriodFilter active={range.period} from={range.from} to={range.to} />
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Stat
@@ -69,7 +89,7 @@ export default async function AdminDashboard() {
           </CardHeader>
           <CardContent className="pt-4 sm:pt-5">
             {recent.length === 0 ? (
-              <EmptyState icon={Inbox} label="Nenhum pedido ainda." />
+              <EmptyState icon={Inbox} label="Nenhum pedido neste período." />
             ) : (
               <ul className="-mx-2 divide-y divide-border/60">
                 {recent.map((o) => (
@@ -130,6 +150,85 @@ export default async function AdminDashboard() {
         </Card>
       </div>
     </div>
+  );
+}
+
+/** Filtro de período: atalhos Hoje/Este mês + intervalo personalizado. */
+function PeriodFilter({ active, from, to }: { active: PeriodKey; from: string; to: string }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+      <div className="flex flex-wrap gap-2">
+        <PeriodPill href="/admin?period=hoje" active={active === "hoje"}>
+          Hoje
+        </PeriodPill>
+        <PeriodPill href="/admin" active={active === "mes"}>
+          Este mês
+        </PeriodPill>
+      </div>
+
+      {/* GET para /admin?period=custom&from=..&to=.. — sem JS no cliente. */}
+      <form className="flex flex-wrap items-end gap-2">
+        <input type="hidden" name="period" value="custom" />
+        <div className="flex flex-col gap-1">
+          <label htmlFor="from" className="text-xs text-muted-foreground">
+            De
+          </label>
+          <Input
+            id="from"
+            type="date"
+            name="from"
+            defaultValue={from}
+            className="h-9 w-auto"
+            aria-label="Data inicial"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="to" className="text-xs text-muted-foreground">
+            Até
+          </label>
+          <Input
+            id="to"
+            type="date"
+            name="to"
+            defaultValue={to}
+            className="h-9 w-auto"
+            aria-label="Data final"
+          />
+        </div>
+        <Button
+          type="submit"
+          variant={active === "custom" ? "default" : "secondary"}
+          size="sm"
+          className="h-9"
+        >
+          Aplicar
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+function PeriodPill({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border hover:bg-secondary",
+      )}
+    >
+      {children}
+    </Link>
   );
 }
 
