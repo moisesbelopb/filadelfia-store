@@ -34,17 +34,27 @@ export function PeriodFilter({
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-      <div className="flex flex-wrap gap-2">
-        <PeriodPill href={hrefWith({ period: "hoje" })} active={active === "hoje"}>
+      {/* Atalhos: dividem a linha no mobile (parecem um seletor), naturais no desktop. */}
+      <div className="flex gap-2">
+        <PeriodPill
+          href={hrefWith({ period: "hoje" })}
+          active={active === "hoje"}
+          className="flex-1 text-center sm:flex-none"
+        >
           Hoje
         </PeriodPill>
-        <PeriodPill href={hrefWith({ period: undefined })} active={active === "mes"}>
+        <PeriodPill
+          href={hrefWith({ period: undefined })}
+          active={active === "mes"}
+          className="flex-1 text-center sm:flex-none"
+        >
           Este mês
         </PeriodPill>
       </div>
 
-      {/* GET p/ basePath?period=custom&...: preserva os demais filtros por hidden. */}
-      <form action={basePath} className="flex flex-wrap items-end gap-2">
+      {/* GET p/ basePath?period=custom&...: preserva os demais filtros por hidden.
+          Mobile: De/Até lado a lado + Aplicar em largura total. Desktop: em linha. */}
+      <form action={basePath} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
         <input type="hidden" name="period" value="custom" />
         {Object.entries(params).map(([k, v]) =>
           v ? <input key={k} type="hidden" name={k} value={v} /> : null,
@@ -58,7 +68,7 @@ export function PeriodFilter({
             type="date"
             name="from"
             defaultValue={from}
-            className="h-9 w-auto"
+            className="h-9 w-full sm:w-auto"
             aria-label="Data inicial"
           />
         </div>
@@ -71,7 +81,7 @@ export function PeriodFilter({
             type="date"
             name="to"
             defaultValue={to}
-            className="h-9 w-auto"
+            className="h-9 w-full sm:w-auto"
             aria-label="Data final"
           />
         </div>
@@ -79,7 +89,7 @@ export function PeriodFilter({
           type="submit"
           variant={active === "custom" ? "default" : "secondary"}
           size="sm"
-          className="h-9"
+          className="col-span-2 h-9 sm:col-span-1"
         >
           Aplicar
         </Button>
@@ -91,10 +101,12 @@ export function PeriodFilter({
 function PeriodPill({
   href,
   active,
+  className,
   children,
 }: {
   href: string;
   active: boolean;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -105,6 +117,7 @@ function PeriodPill({
         active
           ? "border-primary bg-primary text-primary-foreground"
           : "border-border hover:bg-secondary",
+        className,
       )}
     >
       {children}
