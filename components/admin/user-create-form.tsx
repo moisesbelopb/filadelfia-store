@@ -32,7 +32,15 @@ export function UserCreateForm() {
       toast({ variant: "error", title: "Não foi possível criar", description: res.error });
       return;
     }
-    toast({ variant: "success", title: "Usuário criado", description: values.email });
+    toast(
+      res.data.promoted
+        ? {
+            variant: "success",
+            title: "Cliente promovido a administrador",
+            description: `${res.data.name} agora acessa o painel (mantém a senha atual).`,
+          }
+        : { variant: "success", title: "Usuário criado", description: values.email },
+    );
     reset();
     router.refresh();
   }

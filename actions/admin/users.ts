@@ -11,13 +11,35 @@ import {
   setActiveSchema,
   setRoleSchema,
 } from "@/lib/validators/admin";
+import type { UserRole } from "@/types/db";
 import { revalidatePath } from "next/cache";
 
 // Ban "indefinido" no GoTrue (~100 anos). "none" reativa.
 const BAN_FOREVER = "876000h";
 
-/** Cria um novo usuário administrador (apenas admin/super_admin). */
-export async function createAdminUser(input: unknown): Promise<ActionResult> {
+/** Resultado do "Novo administrador": criou do zero ou promoveu conta existente. */
+export type CreateUserResult = { promoted: boolean; name: string };
+
+/**
+ * Localiza um usuário do Auth pelo e-mail (case-insensitive). O Auth não expõe
+ * "buscar por e-mail", então varremos a lista (loja pequena; perPage alto).
+ */
+async function findUserByEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  email: string,
+): Promise<{ id: string; email: string } | null> {
+  const target = email.toLowerCase();
+  const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const found = (data?.users ?? []).find((u) => (u.email ?? "").toLowerCase() === target);
+  return found ? { id: found.id, email: found.email ?? email } : null;
+}
+
+/**
+ * Cria um novo administrador — ou, se o e-mail já pertencer a alguém (ex.: um
+ * cliente da loja), PROMOVE essa conta ao papel escolhido mantendo a senha
+ * atual da pessoa. O campo de senha é ignorado ao promover. Apenas admin.
+ */
+export async function createAdminUser(input: unknown): Promise<ActionResult<CreateUserResult>> {
   if (!isSupabaseConfigured) return fail("Configure o Supabase para gerenciar usuários.");
   if (!(await isAdminUser())) return fail("Acesso negado.");
 
@@ -32,18 +54,21 @@ export async function createAdminUser(input: unknown): Promise<ActionResult> {
     return fail("Service role não configurada (SUPABASE_SERVICE_ROLE_KEY).");
   }
 
+  const actor = await getCurrentUser();
+
   const { data, error } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
     user_metadata: { full_name: name },
   });
-  if (error) {
-    const msg = /registered|already/i.test(error.message)
-      ? "Já existe um usuário com esse e-mail."
-      : error.message;
-    return fail(msg);
+
+  // E-mail já existe: promove a conta atual em vez de recusar.
+  if (error && /registered|already/i.test(error.message)) {
+    return promoteExistingUser(admin, email, role, actor?.id ?? null);
   }
+  if (error) return fail(error.message);
+
   const uid = data.user?.id;
   if (!uid) return fail("Falha ao criar usuário.");
 
@@ -53,11 +78,49 @@ export async function createAdminUser(input: unknown): Promise<ActionResult> {
     .upsert({ id: uid, full_name: name, role }, { onConflict: "id" });
   if (pErr) return fail(pErr.message);
 
-  const actor = await getCurrentUser();
   await logAudit(actor?.id ?? null, "user.create", "user", uid, { email, role });
 
   revalidatePath("/admin/usuarios");
-  return ok(undefined);
+  return ok({ promoted: false, name });
+}
+
+/** Promove um usuário já existente (normalmente cliente) ao papel de admin. */
+async function promoteExistingUser(
+  admin: ReturnType<typeof createAdminClient>,
+  email: string,
+  role: "admin" | "super_admin",
+  actorId: string | null,
+): Promise<ActionResult<CreateUserResult>> {
+  const existing = await findUserByEmail(admin, email);
+  if (!existing) {
+    return fail("Já existe um usuário com esse e-mail, mas não foi possível localizá-lo.");
+  }
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("role, full_name")
+    .eq("id", existing.id)
+    .maybeSingle();
+  const currentRole = (profile?.role as UserRole | undefined) ?? "cliente";
+
+  if (currentRole === "admin" || currentRole === "super_admin") {
+    return fail("Esse e-mail já é um administrador do painel.");
+  }
+
+  // Mantém o nome que a pessoa já tem; só define papel de administrador.
+  const { error } = await admin.from("profiles").update({ role }).eq("id", existing.id);
+  if (error) return fail("Não foi possível promover este usuário.");
+
+  const name = (profile?.full_name as string | undefined)?.trim() || existing.email;
+  await logAudit(actorId, "user.promote", "user", existing.id, {
+    email: existing.email,
+    from: currentRole,
+    to: role,
+  });
+
+  revalidatePath("/admin/usuarios");
+  revalidatePath("/admin/clientes");
+  return ok({ promoted: true, name });
 }
 
 /** Altera o papel de um usuário (cliente / admin / super_admin). */
@@ -120,13 +183,9 @@ export async function setUserActive(input: unknown): Promise<ActionResult> {
   });
   if (error) return fail(error.message);
 
-  await logAudit(
-    actor?.id ?? null,
-    active ? "user.activate" : "user.deactivate",
-    "user",
-    userId,
-    { email },
-  );
+  await logAudit(actor?.id ?? null, active ? "user.activate" : "user.deactivate", "user", userId, {
+    email,
+  });
   revalidatePath("/admin/usuarios");
   return ok(undefined);
 }
