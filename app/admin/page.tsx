@@ -2,7 +2,7 @@ import { PeriodFilter } from "@/components/admin/period-filter";
 import { OrderStatusBadge } from "@/components/loja/order-status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolvePeriod } from "@/lib/dashboard-period";
-import { type StockAlertItem, getDashboardData } from "@/lib/queries/admin";
+import { getDashboardData } from "@/lib/queries/admin";
 import { cardHighlight, cn, formatBRL, formatDateTime } from "@/lib/utils";
 import {
   ArrowUpRight,
@@ -138,7 +138,7 @@ export default async function AdminDashboard({
               <PackageX className="size-4 text-warning" /> Estoque: falta e baixo
             </CardTitle>
             <Link
-              href="/admin/estoque"
+              href="/admin/produtos?tab=estoque"
               className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               Gerenciar <ArrowUpRight className="size-3.5" />
@@ -148,23 +148,19 @@ export default async function AdminDashboard({
             {stock.falta.length === 0 && stock.baixo.length === 0 ? (
               <EmptyState icon={PackageCheck} label="Nenhum item em falta ou com estoque baixo." />
             ) : (
-              <div className="flex flex-col gap-4">
-                {stock.falta.length > 0 && (
-                  <StockGroup
-                    title="Em falta (esgotado)"
-                    items={stock.falta}
-                    badgeClass="bg-destructive/15 text-destructive"
-                    badgeText={() => "Esgotado"}
-                  />
-                )}
-                {stock.baixo.length > 0 && (
-                  <StockGroup
-                    title="Estoque baixo (até 5 un.)"
-                    items={stock.baixo}
-                    badgeClass="bg-warning/15 text-warning"
-                    badgeText={(n) => `${n} un.`}
-                  />
-                )}
+              <div className="grid grid-cols-2 gap-3">
+                <StockCount
+                  label="Em falta"
+                  sub="Esgotado"
+                  value={stock.falta.length}
+                  tone="danger"
+                />
+                <StockCount
+                  label="Estoque mínimo"
+                  sub="Até 5 un."
+                  value={stock.baixo.length}
+                  tone="warning"
+                />
               </div>
             )}
           </CardContent>
@@ -174,41 +170,37 @@ export default async function AdminDashboard({
   );
 }
 
-function StockGroup({
-  title,
-  items,
-  badgeClass,
-  badgeText,
+/** Contador compacto de estoque: um número grande que leva à aba Estoque. */
+function StockCount({
+  label,
+  sub,
+  value,
+  tone,
 }: {
-  title: string;
-  items: StockAlertItem[];
-  badgeClass: string;
-  badgeText: (stock: number) => string;
+  label: string;
+  sub: string;
+  value: number;
+  tone: "danger" | "warning";
 }) {
   return (
-    <div>
-      <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {title} · {items.length}
-      </p>
-      <ul className="-mx-2 divide-y divide-border/60">
-        {items.map((i) => (
-          <li key={i.id} className="flex items-center justify-between gap-3 px-2 py-2.5">
-            <span className="min-w-0 truncate text-sm">
-              {i.product}
-              {i.size !== "—" && <span className="text-muted-foreground"> · Tam. {i.size}</span>}
-            </span>
-            <span
-              className={cn(
-                "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums",
-                badgeClass,
-              )}
-            >
-              {badgeText(i.stock)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Link
+      href="/admin/produtos?tab=estoque"
+      className={cn(
+        "flex flex-col gap-0.5 rounded-lg border border-border bg-background p-3",
+        cardHighlight,
+      )}
+    >
+      <span
+        className={cn(
+          "font-display text-3xl font-semibold tabular-nums",
+          tone === "danger" ? "text-destructive" : "text-warning",
+        )}
+      >
+        {value}
+      </span>
+      <span className="text-xs font-medium uppercase tracking-wider text-foreground">{label}</span>
+      <span className="text-xs text-muted-foreground">{sub}</span>
+    </Link>
   );
 }
 
