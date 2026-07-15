@@ -53,43 +53,50 @@ export function PeriodFilter({
       </div>
 
       {/* GET p/ basePath?period=custom&...: preserva os demais filtros por hidden.
-          Mobile: De/Até lado a lado + Aplicar em largura total. Desktop: em linha. */}
-      <form action={basePath} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
+          Mobile: De/Até lado a lado (metades iguais) + Aplicar em largura total.
+          Desktop: tudo em linha. min-w-0 deixa os inputs de data encolherem para
+          não estourar a coluna e desalinhar a grade. */}
+      <form
+        action={basePath}
+        className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-end"
+      >
         <input type="hidden" name="period" value="custom" />
         {Object.entries(params).map(([k, v]) =>
           v ? <input key={k} type="hidden" name={k} value={v} /> : null,
         )}
-        <div className="flex flex-col gap-1">
-          <label htmlFor="period-from" className="text-xs text-muted-foreground">
-            De
-          </label>
-          <Input
-            id="period-from"
-            type="date"
-            name="from"
-            defaultValue={from}
-            className="h-9 w-full sm:w-auto"
-            aria-label="Data inicial"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="period-to" className="text-xs text-muted-foreground">
-            Até
-          </label>
-          <Input
-            id="period-to"
-            type="date"
-            name="to"
-            defaultValue={to}
-            className="h-9 w-full sm:w-auto"
-            aria-label="Data final"
-          />
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex min-w-0 flex-col gap-1">
+            <label htmlFor="period-from" className="text-xs font-medium text-muted-foreground">
+              De
+            </label>
+            <Input
+              id="period-from"
+              type="date"
+              name="from"
+              defaultValue={from}
+              className="h-9 w-full"
+              aria-label="Data inicial"
+            />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <label htmlFor="period-to" className="text-xs font-medium text-muted-foreground">
+              Até
+            </label>
+            <Input
+              id="period-to"
+              type="date"
+              name="to"
+              defaultValue={to}
+              className="h-9 w-full"
+              aria-label="Data final"
+            />
+          </div>
         </div>
         <Button
           type="submit"
           variant={active === "custom" ? "default" : "secondary"}
           size="sm"
-          className="col-span-2 h-9 sm:col-span-1"
+          className="h-9 w-full sm:w-auto"
         >
           Aplicar
         </Button>
