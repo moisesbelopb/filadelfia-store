@@ -2,8 +2,8 @@ import { PeriodFilter } from "@/components/admin/period-filter";
 import { OrderStatusBadge } from "@/components/loja/order-status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolvePeriod } from "@/lib/dashboard-period";
-import { type VisitStats, getVisitStats } from "@/lib/queries/analytics";
 import { getDashboardData } from "@/lib/queries/admin";
+import { type VisitStats, getVisitStats } from "@/lib/queries/analytics";
 import { cardHighlight, cn, formatBRL, formatDateTime } from "@/lib/utils";
 import {
   ArrowUpRight,
@@ -194,7 +194,7 @@ function VisitsCard({ visits }: { visits: VisitStats }) {
           <div className="flex gap-6">
             <div className="flex flex-col gap-1">
               <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <Eye className="size-3.5" /> Visitas
+                <Eye className="size-3.5" /> Navegação
               </span>
               <span className="font-display text-3xl font-semibold tabular-nums">
                 {visits.views}
