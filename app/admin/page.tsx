@@ -2,15 +2,17 @@ import { PeriodFilter } from "@/components/admin/period-filter";
 import { OrderStatusBadge } from "@/components/loja/order-status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolvePeriod } from "@/lib/dashboard-period";
-import { getDashboardData } from "@/lib/queries/admin";
+import { type StockAlertItem, getDashboardData } from "@/lib/queries/admin";
 import { cardHighlight, cn, formatBRL, formatDateTime } from "@/lib/utils";
 import {
-  AlertTriangle,
   ArrowUpRight,
+  Ban,
+  Banknote,
   ChevronRight,
   Clock,
   Inbox,
   PackageCheck,
+  PackageX,
   Truck,
   Wallet,
 } from "lucide-react";
@@ -26,10 +28,8 @@ export default async function AdminDashboard({
 }) {
   const { period: periodRaw, from, to } = await searchParams;
   const range = resolvePeriod(periodRaw, from, to);
-  const { counts, revenueExpected, ordersTotal, lowStock, recent } = await getDashboardData({
-    start: range.start,
-    end: range.end,
-  });
+  const { counts, revenueExpected, ordersTotal, deliveries, stock, recent } =
+    await getDashboardData({ start: range.start, end: range.end });
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,7 +43,7 @@ export default async function AdminDashboard({
 
       <PeriodFilter basePath="/admin" active={range.period} from={range.from} to={range.to} />
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         <Stat
           label="Aguardando"
           value={counts.solicitado}
@@ -59,11 +59,25 @@ export default async function AdminDashboard({
           href="/admin/pedidos"
         />
         <Stat
-          label="Entregues"
-          value={counts.entregue}
+          label="Entregas realizadas"
+          value={deliveries.count}
           icon={PackageCheck}
           tone="success"
-          href="/admin/pedidos?status=entregue"
+          href="/admin/entregas"
+        />
+        <Stat
+          label="Taxas de entrega (motoboy)"
+          value={formatBRL(deliveries.fees)}
+          icon={Banknote}
+          tone="warning"
+          href="/admin/entregas"
+        />
+        <Stat
+          label="Pedidos cancelados"
+          value={counts.cancelado}
+          icon={Ban}
+          tone="danger"
+          href="/admin/pedidos?status=cancelado"
         />
         <Stat
           label="Faturamento previsto"
@@ -121,7 +135,7 @@ export default async function AdminDashboard({
         <Card className="flex flex-col">
           <CardHeader className="flex-row items-center justify-between border-b border-border/70 pb-4">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider">
-              <AlertTriangle className="size-4 text-warning" /> Estoque baixo
+              <PackageX className="size-4 text-warning" /> Estoque: falta e baixo
             </CardTitle>
             <Link
               href="/admin/estoque"
@@ -131,19 +145,27 @@ export default async function AdminDashboard({
             </Link>
           </CardHeader>
           <CardContent className="pt-4 sm:pt-5">
-            {lowStock.length === 0 ? (
-              <EmptyState icon={PackageCheck} label="Nenhum item crítico." />
+            {stock.falta.length === 0 && stock.baixo.length === 0 ? (
+              <EmptyState icon={PackageCheck} label="Nenhum item em falta ou com estoque baixo." />
             ) : (
-              <ul className="-mx-2 divide-y divide-border/60">
-                {lowStock.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between gap-3 px-2 py-3">
-                    <span className="min-w-0 truncate text-sm">{p.name}</span>
-                    <span className="shrink-0 rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-warning">
-                      {p.stock} un.
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div className="flex flex-col gap-4">
+                {stock.falta.length > 0 && (
+                  <StockGroup
+                    title="Em falta (esgotado)"
+                    items={stock.falta}
+                    badgeClass="bg-destructive/15 text-destructive"
+                    badgeText={() => "Esgotado"}
+                  />
+                )}
+                {stock.baixo.length > 0 && (
+                  <StockGroup
+                    title="Estoque baixo (até 5 un.)"
+                    items={stock.baixo}
+                    badgeClass="bg-warning/15 text-warning"
+                    badgeText={(n) => `${n} un.`}
+                  />
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -152,10 +174,49 @@ export default async function AdminDashboard({
   );
 }
 
-const TONES: Record<"primary" | "success" | "warning", string> = {
+function StockGroup({
+  title,
+  items,
+  badgeClass,
+  badgeText,
+}: {
+  title: string;
+  items: StockAlertItem[];
+  badgeClass: string;
+  badgeText: (stock: number) => string;
+}) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {title} · {items.length}
+      </p>
+      <ul className="-mx-2 divide-y divide-border/60">
+        {items.map((i) => (
+          <li key={i.id} className="flex items-center justify-between gap-3 px-2 py-2.5">
+            <span className="min-w-0 truncate text-sm">
+              {i.product}
+              {i.size !== "—" && <span className="text-muted-foreground"> · Tam. {i.size}</span>}
+            </span>
+            <span
+              className={cn(
+                "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums",
+                badgeClass,
+              )}
+            >
+              {badgeText(i.stock)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const TONES: Record<"primary" | "success" | "warning" | "danger", string> = {
   primary: "bg-accent text-accent-foreground",
   success: "bg-success/15 text-success",
   warning: "bg-warning/15 text-warning",
+  danger: "bg-destructive/15 text-destructive",
 };
 
 function Stat({
@@ -168,7 +229,7 @@ function Stat({
   label: string;
   value: string | number;
   icon: React.ComponentType<{ className?: string }>;
-  tone: "primary" | "success" | "warning";
+  tone: "primary" | "success" | "warning" | "danger";
   href?: string;
 }) {
   const inner = (

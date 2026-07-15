@@ -13,6 +13,7 @@ import type {
   OrderItem,
   OrderStatus,
   OrderWithItems,
+  PaymentMethod,
   ProductWithImages,
   UserRole,
 } from "@/types/db";
@@ -306,35 +307,70 @@ export interface DashboardRange {
   end: string;
 }
 
+/** Item de alerta de estoque (por TAMANHO, que é onde o estoque é controlado). */
+export interface StockAlertItem {
+  id: string;
+  product: string;
+  size: string;
+  stock: number;
+}
+
+/** Variantes zeradas (falta) e com pouco estoque (1..LOW_STOCK_THRESHOLD). */
+async function fetchStockAlerts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<{ falta: StockAlertItem[]; baixo: StockAlertItem[] }> {
+  const { data } = await supabase
+    .from("product_variants")
+    .select("id, size, stock, product:products!inner(name, is_active)")
+    .lte("stock", LOW_STOCK_THRESHOLD)
+    .eq("product.is_active", true)
+    .order("stock", { ascending: true });
+
+  const items = (
+    (data as unknown as {
+      id: string;
+      size: string;
+      stock: number;
+      product: { name: string } | null;
+    }[]) ?? []
+  ).map((v) => ({ id: v.id, product: v.product?.name ?? "—", size: v.size, stock: v.stock }));
+
+  return {
+    falta: items.filter((i) => i.stock === 0),
+    baixo: items.filter((i) => i.stock > 0),
+  };
+}
+
+/** Alertas de estoque a partir do catálogo demo (agregado, sem tamanho). */
+function demoStockAlerts(): { falta: StockAlertItem[]; baixo: StockAlertItem[] } {
+  const items = demoProducts
+    .filter((p) => p.is_active && p.stock <= LOW_STOCK_THRESHOLD)
+    .map((p) => ({ id: p.id, product: p.name, size: "—", stock: p.stock }));
+  return { falta: items.filter((i) => i.stock === 0), baixo: items.filter((i) => i.stock > 0) };
+}
+
 export async function getDashboardData(range?: DashboardRange) {
   if (!isSupabaseConfigured) {
-    // Sem pedidos demo, mas o estoque baixo espelha o catálogo da loja.
-    const lowStock = demoProducts
-      .filter((p) => p.is_active && p.stock <= LOW_STOCK_THRESHOLD)
-      .sort((a, b) => a.stock - b.stock)
-      .map((p) => ({ id: p.id, name: p.name, stock: p.stock }));
     return {
-      counts: { solicitado: 0, andamento: 0, entregue: 0 },
+      counts: { solicitado: 0, andamento: 0, entregue: 0, cancelado: 0 },
       revenueExpected: 0,
       ordersTotal: 0,
-      lowStock,
+      deliveries: { count: 0, fees: 0 },
+      stock: demoStockAlerts(),
       recent: [] as Order[],
     };
   }
   const supabase = await createClient();
-  // Pedidos recortados pelo período (por data de criação); estoque baixo é sempre atual.
+  // Pedidos recortados pelo período (por data de criação); estoque é sempre atual.
   let ordersQuery = supabase.from("orders").select("id, status, total, created_at, order_number");
   if (range) {
     ordersQuery = ordersQuery.gte("created_at", range.start).lte("created_at", range.end);
   }
-  const [{ data: orders }, { data: low }] = await Promise.all([
+  const [{ data: orders }, stock, delivery] = await Promise.all([
     ordersQuery,
-    supabase
-      .from("products")
-      .select("id, name, stock")
-      .lte("stock", LOW_STOCK_THRESHOLD)
-      .eq("is_active", true)
-      .order("stock", { ascending: true }),
+    fetchStockAlerts(supabase),
+    // Entregas realizadas no período (por data da entrega) — base do repasse ao motoboy.
+    getDeliveryReport(range),
   ]);
 
   const all = (orders as Pick<Order, "status" | "total">[] | null) ?? [];
@@ -343,6 +379,7 @@ export async function getDashboardData(range?: DashboardRange) {
     solicitado: all.filter((o) => o.status === "solicitado").length,
     andamento: all.filter((o) => andamento.includes(o.status)).length,
     entregue: all.filter((o) => o.status === "entregue").length,
+    cancelado: all.filter((o) => o.status === "cancelado").length,
   };
   const revenueExpected = all
     .filter((o) => [...andamento, "entregue"].includes(o.status))
@@ -356,9 +393,61 @@ export async function getDashboardData(range?: DashboardRange) {
     counts,
     revenueExpected,
     ordersTotal: all.length,
-    lowStock: (low as { id: string; name: string; stock: number }[] | null) ?? [],
+    deliveries: { count: delivery.totals.count, fees: delivery.totals.fees },
+    stock,
     recent,
   };
+}
+
+/** Uma linha do relatório de entregas (uma entrega realizada). */
+export interface DeliveryReportRow {
+  id: string;
+  order_number: number;
+  customer_name: string;
+  address: Address | null;
+  payment_method: PaymentMethod;
+  total: number;
+  delivery_fee: number;
+  created_at: string;
+  delivered_at: string | null;
+}
+
+export interface DeliveryReport {
+  rows: DeliveryReportRow[];
+  totals: { count: number; fees: number; orders: number };
+}
+
+/**
+ * Entregas REALIZADAS (recebimento 'entrega' + status 'entregue') no período,
+ * recortadas pela DATA DA ENTREGA (delivered_at) — é o que importa para repassar
+ * as taxas ao motoboy. Retiradas na igreja não entram (não há motoboy/taxa).
+ */
+export async function getDeliveryReport(range?: DashboardRange): Promise<DeliveryReport> {
+  if (!isSupabaseConfigured) return { rows: [], totals: { count: 0, fees: 0, orders: 0 } };
+  const supabase = await createClient();
+
+  let q = supabase
+    .from("orders")
+    .select(
+      "id, order_number, customer_name, address, payment_method, total, delivery_fee, created_at, delivered_at",
+    )
+    .eq("fulfillment_type", "entrega")
+    .eq("status", "entregue");
+  if (range) q = q.gte("delivered_at", range.start).lte("delivered_at", range.end);
+
+  const { data } = await q.order("delivered_at", { ascending: false });
+  const rows = (data as DeliveryReportRow[] | null) ?? [];
+
+  const totals = rows.reduce(
+    (acc, r) => ({
+      count: acc.count + 1,
+      fees: acc.fees + Number(r.delivery_fee),
+      orders: acc.orders + Number(r.total),
+    }),
+    { count: 0, fees: 0, orders: 0 },
+  );
+
+  return { rows, totals };
 }
 
 export async function getSetting<T = Record<string, unknown>>(key: string): Promise<T | null> {

@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import {
+  Bike,
   Contact,
   FileClock,
   LayoutDashboard,
@@ -20,12 +21,13 @@ import { usePathname } from "next/navigation";
 const items = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/pedidos", label: "Pedidos", icon: ScrollText },
+  { href: "/admin/entregas", label: "Entregas", icon: Bike },
   { href: "/admin/produtos", label: "Produtos", icon: Package },
   { href: "/admin/categorias", label: "Categorias", icon: Tags },
   { href: "/admin/clientes", label: "Clientes", icon: Contact },
   { href: "/admin/usuarios", label: "Usuários", icon: Users },
   { href: "/admin/configuracoes/whatsapp", label: "Comunicação", icon: MessageSquare },
-  { href: "/admin/configuracoes/entrega", label: "Entrega", icon: Truck },
+  { href: "/admin/configuracoes/entrega", label: "Config. entrega", icon: Truck },
   { href: "/admin/configuracoes/visual", label: "Visual", icon: Palette },
   { href: "/admin/conta", label: "Minha conta", icon: UserCog },
 ];
