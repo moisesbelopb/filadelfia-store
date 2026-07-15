@@ -299,7 +299,7 @@ export async function listCategoriesWithCounts(): Promise<CategoryWithCount[]> {
   }));
 }
 
-const LOW_STOCK_THRESHOLD = 5;
+const LOW_STOCK_THRESHOLD = 3;
 
 /** Intervalo de tempo (ISO) para recortar os números do dashboard por criação. */
 export interface DashboardRange {

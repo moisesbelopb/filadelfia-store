@@ -157,7 +157,7 @@ export default async function AdminDashboard({
                 />
                 <StockCount
                   label="Estoque mínimo"
-                  sub="Até 5 un."
+                  sub="Até 3 un."
                   value={stock.baixo.length}
                   tone="warning"
                 />

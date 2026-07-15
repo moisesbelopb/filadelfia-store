@@ -8,7 +8,7 @@ import type { ProductVariant, ProductWithImages } from "@/types/db";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
-const LOW_STOCK = 5;
+const LOW_STOCK = 3;
 
 export default async function AdminProductsPage({
   searchParams,
@@ -116,7 +116,7 @@ function ProductsList({ products }: { products: ProductWithImages[] }) {
   );
 }
 
-/** Conta quantas variantes do produto estão em falta (0) e em estoque mínimo (1..5). */
+/** Conta quantas variantes do produto estão em falta (0) e em estoque mínimo (1..3). */
 function stockIssues(variants: ProductVariant[]): { out: number; low: number } {
   return variants.reduce(
     (acc, v) => {
