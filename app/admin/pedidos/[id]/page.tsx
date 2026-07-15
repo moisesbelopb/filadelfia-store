@@ -78,6 +78,7 @@ export default async function AdminOrderDetail({
             orderId={order.id}
             status={order.status}
             paymentStatus={order.payment_status}
+            fulfillmentType={order.fulfillment_type}
           />
           {order.status_reason && (
             <p className="mt-3 text-sm text-muted-foreground">Motivo: {order.status_reason}</p>

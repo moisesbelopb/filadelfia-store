@@ -1,5 +1,6 @@
+import { DEFAULT_EMAILS, type OrderEmailEvent, REASON_EVENTS } from "@/lib/email/defaults";
 import { formatBRL, normalizePhone } from "@/lib/utils";
-import type { OrderWithItems, PixSettings } from "@/types/db";
+import type { EmailSettings, OrderWithItems, PixSettings } from "@/types/db";
 
 /**
  * Mensagem padrão do Pix. Pré-preenche o campo da Comunicação e também serve
@@ -45,6 +46,35 @@ export function pixMessage(
 ): string {
   const body = templateBody?.trim() ? templateBody : DEFAULT_PIX_MESSAGE;
   return renderTemplate(body, pixVars(order, pix ?? { chave: "", recebedor: "" }));
+}
+
+/**
+ * Mensagem de WhatsApp que avisa o cliente sobre o NOVO status do pedido.
+ * Reaproveita o texto do e-mail daquele evento (o admin pode ter personalizado
+ * em Comunicação; senão usa o padrão), então os dois canais falam igual.
+ */
+export function statusWhatsappMessage(
+  order: { customer_name: string; order_number: number; status_reason?: string | null },
+  event: OrderEmailEvent,
+  emailTemplates?: Partial<EmailSettings> | null,
+): string {
+  const t = { ...DEFAULT_EMAILS[event], ...(emailTemplates?.[event] ?? {}) };
+  const vars = {
+    cliente: order.customer_name,
+    pedido: String(order.order_number),
+    motivo: order.status_reason?.trim() ?? "",
+  };
+  const linhas = [
+    `Olá ${order.customer_name}! Aqui é da Casa de Filadélfia 🙏`,
+    "",
+    renderTemplate(t.intro, vars),
+  ];
+  // Recusa/cancelamento: o motivo informado no painel entra na mensagem.
+  if (REASON_EVENTS.includes(event) && vars.motivo) {
+    linhas.push("", `Motivo: ${vars.motivo}`);
+  }
+  linhas.push("", `📦 Pedido #${order.order_number}`);
+  return linhas.join("\n");
 }
 
 /** Monta o link wa.me (click-to-chat) com o texto já preenchido. */
