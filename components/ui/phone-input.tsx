@@ -25,7 +25,8 @@ export const PhoneInput = React.forwardRef<HTMLInputElement, React.ComponentProp
         type="tel"
         inputMode="numeric"
         autoComplete="tel"
-        maxLength={15}
+        // Folga para colar com DDI (+55 ...): o maskPhone remove o 55 e reformata.
+        maxLength={20}
         placeholder="(83) 99999-9999"
         {...props}
         onChange={handleChange}

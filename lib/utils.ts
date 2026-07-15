@@ -26,8 +26,10 @@ export function slugify(input: string): string {
 
 /** Normaliza telefone para o formato E.164 sem símbolos (ex.: 5599999999999). */
 export function normalizePhone(input: string): string {
-  const digits = input.replace(/\D/g, "");
-  // Assume Brasil (55) quando o DDI não vem informado.
+  const digits = input.replace(/\D/g, "").replace(/^0+/, "");
+  // Já vem com o DDI 55 (12 dígitos p/ fixo, 13 p/ celular): não duplica o 55.
+  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) return digits;
+  // Sem DDI: assume Brasil (55).
   if (digits.length <= 11) return `55${digits}`;
   return digits;
 }
@@ -40,7 +42,10 @@ export function normalizePhone(input: string): string {
 export function titleCaseName(input: string): string {
   return input
     .toLocaleLowerCase("pt-BR")
-    .replace(/(^|[\s'-])(\S)/g, (_m, sep: string, ch: string) => sep + ch.toLocaleUpperCase("pt-BR"));
+    .replace(
+      /(^|[\s'-])(\S)/g,
+      (_m, sep: string, ch: string) => sep + ch.toLocaleUpperCase("pt-BR"),
+    );
 }
 
 /**
@@ -49,7 +54,11 @@ export function titleCaseName(input: string): string {
  * é isso que impede letras no campo.
  */
 export function maskPhone(input: string): string {
-  const d = input.replace(/\D/g, "").slice(0, 11);
+  let raw = input.replace(/\D/g, "");
+  // Número colado/preenchido com o DDI 55 (12–13 dígitos): descarta o 55 para
+  // não confundir o código do país com o DDD (senão os dígitos finais somem).
+  if (raw.length > 11 && raw.startsWith("55")) raw = raw.slice(2);
+  const d = raw.slice(0, 11);
   if (d.length === 0) return "";
   if (d.length <= 2) return `(${d}`;
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
