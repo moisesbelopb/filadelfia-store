@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/lib/use-toast";
 import { type CreateUserInput, createUserSchema } from "@/lib/validators/admin";
@@ -66,7 +67,7 @@ export function UserCreateForm() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Senha</Label>
-            <Input type="password" {...register("password")} autoComplete="new-password" />
+            <PasswordInput {...register("password")} autoComplete="new-password" />
             {errors.password && (
               <p className="text-xs text-destructive">{errors.password.message}</p>
             )}
