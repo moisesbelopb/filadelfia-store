@@ -2,18 +2,22 @@ import { PeriodFilter } from "@/components/admin/period-filter";
 import { OrderStatusBadge } from "@/components/loja/order-status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolvePeriod } from "@/lib/dashboard-period";
+import { type VisitStats, getVisitStats } from "@/lib/queries/analytics";
 import { getDashboardData } from "@/lib/queries/admin";
 import { cardHighlight, cn, formatBRL, formatDateTime } from "@/lib/utils";
 import {
   ArrowUpRight,
   Ban,
   Banknote,
+  BarChart3,
   ChevronRight,
   Clock,
+  Eye,
   Inbox,
   PackageCheck,
   PackageX,
   Truck,
+  Users,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -28,8 +32,11 @@ export default async function AdminDashboard({
 }) {
   const { period: periodRaw, from, to } = await searchParams;
   const range = resolvePeriod(periodRaw, from, to);
-  const { counts, revenueExpected, ordersTotal, deliveries, stock, recent } =
-    await getDashboardData({ start: range.start, end: range.end });
+  const [dash, visits] = await Promise.all([
+    getDashboardData({ start: range.start, end: range.end }),
+    getVisitStats({ start: range.start, end: range.end }),
+  ]);
+  const { counts, revenueExpected, ordersTotal, deliveries, stock, recent } = dash;
 
   return (
     <div className="flex flex-col gap-6">
@@ -86,6 +93,8 @@ export default async function AdminDashboard({
           tone="primary"
         />
       </div>
+
+      <VisitsCard visits={visits} />
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card className="flex flex-col">
@@ -167,6 +176,64 @@ export default async function AdminDashboard({
         </Card>
       </div>
     </div>
+  );
+}
+
+/** Acessos à loja no período: visitas, visitantes e páginas mais acessadas. */
+function VisitsCard({ visits }: { visits: VisitStats }) {
+  return (
+    <Card className="flex flex-col">
+      <CardHeader className="flex-row items-center justify-between border-b border-border/70 pb-4">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider">
+          <BarChart3 className="size-4 text-primary" /> Acessos ao site
+        </CardTitle>
+        <span className="text-xs text-muted-foreground">no período selecionado</span>
+      </CardHeader>
+      <CardContent className="pt-4 sm:pt-5">
+        <div className="grid gap-5 sm:grid-cols-[minmax(0,220px)_1fr] sm:gap-8">
+          <div className="flex gap-6">
+            <div className="flex flex-col gap-1">
+              <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <Eye className="size-3.5" /> Visitas
+              </span>
+              <span className="font-display text-3xl font-semibold tabular-nums">
+                {visits.views}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <Users className="size-3.5" /> Visitantes
+              </span>
+              <span className="font-display text-3xl font-semibold tabular-nums">
+                {visits.uniques}
+              </span>
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Páginas mais acessadas
+            </p>
+            {visits.topPages.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sem acessos no período.</p>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {visits.topPages.map((p) => (
+                  <li key={p.path} className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate font-mono text-xs text-foreground">
+                      {p.path === "/" ? "/ (início)" : p.path}
+                    </span>
+                    <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
+                      {p.views}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

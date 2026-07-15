@@ -1,6 +1,7 @@
 import { BottomNav } from "@/components/loja/bottom-nav";
 import { SiteFooter } from "@/components/loja/site-footer";
 import { SiteHeader } from "@/components/loja/site-header";
+import { VisitTracker } from "@/components/loja/visit-tracker";
 import { ThemeStyle } from "@/components/theme-style";
 import { getVisualSettings } from "@/lib/queries/public-settings";
 import { Suspense } from "react";
@@ -26,6 +27,7 @@ export default async function LojaLayout({
       <SiteFooter />
 
       <BottomNav />
+      <VisitTracker />
     </div>
   );
 }
