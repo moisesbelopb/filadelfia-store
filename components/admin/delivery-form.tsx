@@ -96,10 +96,10 @@ export function DeliveryForm({
             <ClipboardList className="size-4" /> Relatórios
           </TabsTrigger>
           <TabsTrigger value="entrega">
-            <Truck className="size-4" /> Entrega <StatusDot on={form.deliveryEnabled} />
+            <Truck className="size-4" /> Config. Entrega <StatusDot on={form.deliveryEnabled} />
           </TabsTrigger>
           <TabsTrigger value="retirada">
-            <Church className="size-4" /> Retirada <StatusDot on={form.pickupEnabled} />
+            <Church className="size-4" /> Config. Retirada <StatusDot on={form.pickupEnabled} />
           </TabsTrigger>
         </TabsList>
 

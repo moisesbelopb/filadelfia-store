@@ -25,7 +25,7 @@ const items = [
   { href: "/admin/clientes", label: "Clientes", icon: Contact },
   { href: "/admin/usuarios", label: "Usuários", icon: Users },
   { href: "/admin/configuracoes/whatsapp", label: "Comunicação", icon: MessageSquare },
-  { href: "/admin/configuracoes/entrega", label: "Config. entregas", icon: Truck },
+  { href: "/admin/configuracoes/entrega", label: "Entregas", icon: Truck },
   { href: "/admin/configuracoes/visual", label: "Visual", icon: Palette },
   { href: "/admin/conta", label: "Minha conta", icon: UserCog },
 ];
