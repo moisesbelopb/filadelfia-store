@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { STATUS_LABEL } from "@/lib/orders/fsm";
 import { listAdminOrders } from "@/lib/queries/admin";
-import { cn, formatBRL, formatDateTime } from "@/lib/utils";
+import { cardHighlight, cn, formatBRL, formatDateTime } from "@/lib/utils";
 import type { OrderStatus } from "@/types/db";
 import { ClipboardList, Search } from "lucide-react";
 import Link from "next/link";
@@ -101,7 +101,10 @@ export default async function AdminOrdersPage({
             <li key={o.id}>
               <Link
                 href={`/admin/pedidos/${o.id}`}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-secondary/40"
+                className={cn(
+                  "flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4",
+                  cardHighlight,
+                )}
               >
                 <div className="flex min-w-0 flex-col">
                   <span className="font-medium">

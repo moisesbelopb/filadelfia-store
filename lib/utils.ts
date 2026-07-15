@@ -6,6 +6,21 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Destaque de card ao passar o mouse (ou focar por teclado): salto suave —
+ * eleva, amplia de leve, escurece a borda e projeta sombra. Aplicar sobre um
+ * card que já tenha `rounded-*`, `border` e fundo. O movimento fica em
+ * motion-safe (respeita prefers-reduced-motion). Usado em Clientes, Dashboard,
+ * Pedidos, Produtos e Categorias para um destaque consistente.
+ */
+export const cardHighlight = cn(
+  "relative transform-gpu transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out",
+  "hover:z-10 hover:border-foreground/20 hover:bg-secondary/20 hover:shadow-md",
+  "motion-safe:hover:-translate-y-0.5 motion-safe:hover:scale-[1.006]",
+  "focus-visible:z-10 focus-visible:border-foreground/20 focus-visible:shadow-md focus-visible:outline-none",
+  "has-[:focus-visible]:z-10 has-[:focus-visible]:border-foreground/20 has-[:focus-visible]:shadow-md",
+);
+
 /** Formata número como moeda BRL. */
 export function formatBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", {

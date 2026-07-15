@@ -4,7 +4,7 @@ import { UserActions } from "@/components/admin/user-actions";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { CustomerRow } from "@/lib/queries/admin";
-import { cn, formatBRL, maskPhone } from "@/lib/utils";
+import { cardHighlight, cn, formatBRL, maskPhone } from "@/lib/utils";
 import { CalendarDays, ChevronDown, Mail, MapPin, Phone, Search, ShoppingBag } from "lucide-react";
 import type { ElementType } from "react";
 import { useMemo, useState } from "react";
@@ -90,14 +90,8 @@ export function CustomersList({ customers }: { customers: CustomerRow[] }) {
               <li
                 key={c.id}
                 className={cn(
-                  "relative transform-gpu rounded-xl border bg-background shadow-sm",
-                  "transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out",
-                  // z-10 no hover: o card elevado projeta sombra por cima dos vizinhos.
-                  "hover:z-10",
-                  // Salto suave: eleva e amplia de leve o card sob o ponteiro.
-                  "hover:border-foreground/20 hover:bg-secondary/20 hover:shadow-md",
-                  "motion-safe:hover:-translate-y-0.5 motion-safe:hover:scale-[1.006]",
-                  "has-[:focus-visible]:border-foreground/20 has-[:focus-visible]:shadow-md",
+                  "rounded-xl border bg-background shadow-sm",
+                  cardHighlight,
                   open ? "border-foreground/20 bg-secondary/20 shadow-sm" : "border-border",
                 )}
               >

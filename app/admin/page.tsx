@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { type PeriodKey, resolvePeriod } from "@/lib/dashboard-period";
 import { getDashboardData } from "@/lib/queries/admin";
-import { cn, formatBRL, formatDateTime } from "@/lib/utils";
+import { cardHighlight, cn, formatBRL, formatDateTime } from "@/lib/utils";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -253,9 +253,15 @@ function Stat({
 }) {
   const inner = (
     <Card
-      className={`h-full transition-all duration-200 ${
-        href ? "hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-md" : ""
-      }`}
+      className={cn(
+        "h-full",
+        // Card fica dentro de um Link (group): destaque no hover e no foco por teclado.
+        href &&
+          cn(
+            cardHighlight,
+            "group-focus-visible:z-10 group-focus-visible:border-foreground/20 group-focus-visible:shadow-md motion-safe:group-focus-visible:-translate-y-0.5",
+          ),
+      )}
     >
       <CardContent className="flex flex-col gap-4 p-4 sm:p-5">
         <div className="flex items-center justify-between">

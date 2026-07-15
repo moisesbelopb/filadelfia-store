@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import type { CategoryWithCount } from "@/lib/queries/admin";
 import { toast } from "@/lib/use-toast";
-import { cn } from "@/lib/utils";
+import { cardHighlight, cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, Check, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -119,7 +119,7 @@ function CategoryRow({
 
   return (
     <li>
-      <Card>
+      <Card className={cardHighlight}>
         <CardContent className="flex flex-wrap items-center gap-3 p-3">
           <div className="flex shrink-0 flex-col">
             <button

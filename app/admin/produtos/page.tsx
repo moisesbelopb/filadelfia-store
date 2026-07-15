@@ -4,7 +4,7 @@ import { ProductThumb } from "@/components/loja/product-thumb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { listAdminProducts } from "@/lib/queries/admin";
-import { cn, formatBRL } from "@/lib/utils";
+import { cardHighlight, cn, formatBRL } from "@/lib/utils";
 import type { ProductWithImages } from "@/types/db";
 import { Plus } from "lucide-react";
 import Link from "next/link";
@@ -91,7 +91,10 @@ function ProductsList({ products }: { products: ProductWithImages[] }) {
           <li key={p.id}>
             <Link
               href={`/admin/produtos/${p.id}`}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-secondary/40"
+              className={cn(
+                "flex items-center gap-3 rounded-xl border border-border bg-card p-3",
+                cardHighlight,
+              )}
             >
               <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border">
                 <ProductThumb name={p.name} path={primary?.storage_path} sizes="96px" />
@@ -128,7 +131,10 @@ function StockList({ products }: { products: ProductWithImages[] }) {
         return (
           <li
             key={p.id}
-            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3"
+            className={cn(
+              "flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3",
+              cardHighlight,
+            )}
           >
             <div className="flex min-w-0 items-center gap-3">
               <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border">
