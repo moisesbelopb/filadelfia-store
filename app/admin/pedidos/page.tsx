@@ -146,7 +146,7 @@ export default async function AdminOrdersPage({
                   </span>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <OrderStatusBadge status={o.status} />
+                  <OrderStatusBadge status={o.status} fulfillment={o.fulfillment_type} />
                   <span className="text-sm font-semibold">{formatBRL(o.total)}</span>
                 </div>
               </Link>

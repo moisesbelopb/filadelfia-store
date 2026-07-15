@@ -362,7 +362,9 @@ export async function getDashboardData(range?: DashboardRange) {
   }
   const supabase = await createClient();
   // Pedidos recortados pelo período (por data de criação); estoque é sempre atual.
-  let ordersQuery = supabase.from("orders").select("id, status, total, created_at, order_number");
+  let ordersQuery = supabase
+    .from("orders")
+    .select("id, status, total, created_at, order_number, fulfillment_type");
   if (range) {
     ordersQuery = ordersQuery.gte("created_at", range.start).lte("created_at", range.end);
   }

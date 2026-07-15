@@ -1,7 +1,13 @@
 import { Badge } from "@/components/ui/badge";
-import { STATUS_BADGE_VARIANT, STATUS_LABEL } from "@/lib/orders/fsm";
-import type { OrderStatus } from "@/types/db";
+import { STATUS_BADGE_VARIANT, statusLabel } from "@/lib/orders/fsm";
+import type { FulfillmentType, OrderStatus } from "@/types/db";
 
-export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  return <Badge variant={STATUS_BADGE_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>;
+export function OrderStatusBadge({
+  status,
+  fulfillment,
+}: {
+  status: OrderStatus;
+  fulfillment?: FulfillmentType;
+}) {
+  return <Badge variant={STATUS_BADGE_VARIANT[status]}>{statusLabel(status, fulfillment)}</Badge>;
 }

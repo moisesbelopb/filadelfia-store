@@ -130,7 +130,7 @@ export default async function AdminDashboard({
                         <span className="text-sm font-medium tabular-nums">
                           {formatBRL(o.total)}
                         </span>
-                        <OrderStatusBadge status={o.status} />
+                        <OrderStatusBadge status={o.status} fulfillment={o.fulfillment_type} />
                         <ChevronRight className="size-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground" />
                       </div>
                     </Link>

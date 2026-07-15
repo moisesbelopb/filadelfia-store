@@ -1,16 +1,18 @@
-import { ORDER_STATUS_FLOW, STATUS_CUSTOMER_MSG, STATUS_LABEL } from "@/lib/orders/fsm";
+import { ORDER_STATUS_FLOW, statusCustomerMsg, statusLabel } from "@/lib/orders/fsm";
 import { cn, formatDateTime } from "@/lib/utils";
-import type { OrderStatus, OrderStatusHistory } from "@/types/db";
+import type { FulfillmentType, OrderStatus, OrderStatusHistory } from "@/types/db";
 import { Check, X } from "lucide-react";
 
 export function OrderTimeline({
   status,
   history,
   reason,
+  fulfillment,
 }: {
   status: OrderStatus;
   history?: OrderStatusHistory[];
   reason?: string | null;
+  fulfillment?: FulfillmentType;
 }) {
   const timeByStatus = new Map<OrderStatus, string>();
   for (const h of history ?? []) timeByStatus.set(h.to_status, h.created_at);
@@ -20,14 +22,14 @@ export function OrderTimeline({
     return (
       <ol className="flex flex-col">
         <Step
-          label={STATUS_LABEL.solicitado}
-          description={STATUS_CUSTOMER_MSG.solicitado}
+          label={statusLabel("solicitado", fulfillment)}
+          description={statusCustomerMsg("solicitado", fulfillment)}
           time={timeByStatus.get("solicitado")}
           state="done"
         />
         <Step
-          label={STATUS_LABEL[status]}
-          description={reason ? `Motivo: ${reason}` : STATUS_CUSTOMER_MSG[status]}
+          label={statusLabel(status, fulfillment)}
+          description={reason ? `Motivo: ${reason}` : statusCustomerMsg(status, fulfillment)}
           time={timeByStatus.get(status)}
           state="failed"
           last
@@ -43,8 +45,8 @@ export function OrderTimeline({
       {ORDER_STATUS_FLOW.map((s, i) => (
         <Step
           key={s}
-          label={STATUS_LABEL[s]}
-          description={STATUS_CUSTOMER_MSG[s]}
+          label={statusLabel(s, fulfillment)}
+          description={statusCustomerMsg(s, fulfillment)}
           time={timeByStatus.get(s)}
           state={i < currentIndex ? "done" : i === currentIndex ? "current" : "pending"}
           last={i === ORDER_STATUS_FLOW.length - 1}

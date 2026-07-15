@@ -29,6 +29,15 @@ const ACTION_LABEL: Record<OrderStatus, string> = {
   cancelado: "Cancelar",
 };
 
+/** Rótulo do botão ciente do modo de recebimento (retirada vs entrega). */
+function actionLabel(to: OrderStatus, fulfillment: FulfillmentType): string {
+  if (fulfillment === "retirada") {
+    if (to === "saiu_entrega") return "Pronto para retirada";
+    if (to === "entregue") return "Marcar retirado";
+  }
+  return ACTION_LABEL[to];
+}
+
 /** Evento de notificação de um status (solicitado equivale a "pedido recebido"). */
 function eventForStatus(status: OrderStatus, fulfillment: FulfillmentType) {
   return status === "solicitado" ? "order_placed" : emailEventForStatus(status, fulfillment);
@@ -62,7 +71,7 @@ export function OrderActions({
         toast({ variant: "error", title: "Não foi possível atualizar", description: res.error });
         return;
       }
-      toast({ variant: "success", title: `Pedido: ${ACTION_LABEL[to]}` });
+      toast({ variant: "success", title: `Pedido: ${actionLabel(to, fulfillmentType)}` });
       setReasonFor(null);
       setReason("");
       router.refresh();
@@ -130,7 +139,7 @@ export function OrderActions({
             disabled={pending}
             onClick={() => onClick(to)}
           >
-            {ACTION_LABEL[to]}
+            {actionLabel(to, fulfillmentType)}
           </Button>
         );
       })}

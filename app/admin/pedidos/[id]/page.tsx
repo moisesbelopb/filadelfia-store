@@ -66,7 +66,7 @@ export default async function AdminOrderDetail({
           <h1 className="text-xl font-semibold">Pedido #{order.order_number}</h1>
           <p className="text-xs text-muted-foreground">{formatDateTime(order.created_at)}</p>
         </div>
-        <OrderStatusBadge status={order.status} />
+        <OrderStatusBadge status={order.status} fulfillment={order.fulfillment_type} />
       </div>
 
       <Card>
@@ -170,6 +170,7 @@ export default async function AdminOrderDetail({
             status={order.status}
             history={order.order_status_history}
             reason={order.status_reason}
+            fulfillment={order.fulfillment_type}
           />
         </CardContent>
       </Card>

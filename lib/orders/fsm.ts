@@ -57,6 +57,28 @@ export const STATUS_CUSTOMER_MSG: Record<OrderStatus, string> = {
   cancelado: "Pedido cancelado.",
 };
 
+/**
+ * Rótulo do status ciente do modo de recebimento. Na RETIRADA, "saiu_entrega"
+ * vira "Pronto para retirada" e "entregue" vira "Retirado" — o cliente não
+ * recebe em casa, retira na igreja. Sem o fulfillment, cai no rótulo padrão.
+ */
+export function statusLabel(status: OrderStatus, fulfillment?: FulfillmentType): string {
+  if (fulfillment === "retirada") {
+    if (status === "saiu_entrega") return "Pronto para retirada";
+    if (status === "entregue") return "Retirado";
+  }
+  return STATUS_LABEL[status];
+}
+
+/** Mensagem ao cliente ciente do modo de recebimento (retirada vs entrega). */
+export function statusCustomerMsg(status: OrderStatus, fulfillment?: FulfillmentType): string {
+  if (fulfillment === "retirada") {
+    if (status === "saiu_entrega") return "Seu pedido está pronto para retirada na igreja.";
+    if (status === "entregue") return "Pedido retirado. Obrigado!";
+  }
+  return STATUS_CUSTOMER_MSG[status];
+}
+
 export type StatusVariant =
   | "default"
   | "success"

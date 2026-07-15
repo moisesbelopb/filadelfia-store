@@ -7,15 +7,7 @@ import { paymentLabel, statusHeadline } from "@/lib/orders/fsm";
 import type { MyOrder } from "@/lib/queries/orders";
 import { cn, formatBRL } from "@/lib/utils";
 import type { PaymentMethod } from "@/types/db";
-import {
-  Banknote,
-  ChevronRight,
-  Church,
-  CreditCard,
-  MapPin,
-  QrCode,
-  Truck,
-} from "lucide-react";
+import { Banknote, ChevronRight, Church, CreditCard, MapPin, QrCode, Truck } from "lucide-react";
 import Link from "next/link";
 import type { ElementType, ReactNode } from "react";
 
@@ -62,7 +54,7 @@ export function OrderCard({ order }: { order: MyOrder }) {
       {/* 1) O que está acontecendo com o pedido */}
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-secondary/30 px-4 py-3">
         <div className="min-w-0">
-          <OrderStatusBadge status={order.status} />
+          <OrderStatusBadge status={order.status} fulfillment={order.fulfillment_type} />
           <p className="mt-1.5 text-sm font-medium">
             {statusHeadline(order.status, order.fulfillment_type)}
           </p>
