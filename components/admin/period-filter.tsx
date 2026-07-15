@@ -74,7 +74,7 @@ export function PeriodFilter({
               type="date"
               name="from"
               defaultValue={from}
-              className="h-9 w-full"
+              className="h-9 w-full min-w-0 px-2"
               aria-label="Data inicial"
             />
           </div>
@@ -87,7 +87,7 @@ export function PeriodFilter({
               type="date"
               name="to"
               defaultValue={to}
-              className="h-9 w-full"
+              className="h-9 w-full min-w-0 px-2"
               aria-label="Data final"
             />
           </div>
