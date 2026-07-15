@@ -1,6 +1,6 @@
 import "server-only";
 
-import { isAdminUser } from "@/lib/auth";
+import { isAdminUser, isOwnerUser } from "@/lib/auth";
 import { demoCategories, demoProducts } from "@/lib/demo-data";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
@@ -24,6 +24,8 @@ export interface AdminUserRow {
   role: UserRole;
   active: boolean;
   created_at: string;
+  /** True para o dono do sistema (não pode ser excluído/desativado). */
+  isOwner: boolean;
   /** Nº de pedidos — a confirmação de exclusão avisa que o histórico vai junto. */
   ordersCount: number;
 }
@@ -44,6 +46,7 @@ interface BaseUser {
   role: UserRole;
   active: boolean;
   created_at: string;
+  isOwner: boolean;
   whatsapp: string | null;
   address: Address | null;
 }
@@ -81,6 +84,7 @@ async function fetchUsersWithProfiles(): Promise<BaseUser[]> {
       role: ((p?.role as UserRole) ?? "cliente") satisfies UserRole,
       active,
       created_at: u.created_at,
+      isOwner: isOwnerUser(u),
       whatsapp: (p?.whatsapp as string | null) ?? null,
       address: (p?.default_address as Address | null) ?? null,
     };

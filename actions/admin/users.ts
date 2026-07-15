@@ -2,7 +2,7 @@
 
 import { type ActionResult, fail, ok } from "@/lib/action-result";
 import { logAudit } from "@/lib/audit";
-import { NATIVE_ADMIN_EMAIL, getCurrentUser, isAdminUser } from "@/lib/auth";
+import { getCurrentUser, isOwnerUser, isSuperAdmin } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/server";
 import {
@@ -41,7 +41,8 @@ async function findUserByEmail(
  */
 export async function createAdminUser(input: unknown): Promise<ActionResult<CreateUserResult>> {
   if (!isSupabaseConfigured) return fail("Configure o Supabase para gerenciar usuários.");
-  if (!(await isAdminUser())) return fail("Acesso negado.");
+  if (!(await isSuperAdmin()))
+    return fail("Apenas super administradores podem gerenciar usuários.");
 
   const parsed = createUserSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Dados inválidos.");
@@ -126,7 +127,8 @@ async function promoteExistingUser(
 /** Altera o papel de um usuário (cliente / admin / super_admin). */
 export async function setUserRole(input: unknown): Promise<ActionResult> {
   if (!isSupabaseConfigured) return fail("Configure o Supabase.");
-  if (!(await isAdminUser())) return fail("Acesso negado.");
+  if (!(await isSuperAdmin()))
+    return fail("Apenas super administradores podem gerenciar usuários.");
 
   const parsed = setRoleSchema.safeParse(input);
   if (!parsed.success) return fail("Dados inválidos.");
@@ -144,6 +146,12 @@ export async function setUserRole(input: unknown): Promise<ActionResult> {
     return fail("Service role não configurada.");
   }
 
+  // O papel do dono do sistema não pode ser rebaixado por ninguém.
+  const { data: target } = await admin.auth.admin.getUserById(userId);
+  if (isOwnerUser(target.user)) {
+    return fail("O papel do dono do sistema não pode ser alterado.");
+  }
+
   const { error } = await admin.from("profiles").update({ role }).eq("id", userId);
   if (error) return fail(error.message);
 
@@ -155,7 +163,8 @@ export async function setUserRole(input: unknown): Promise<ActionResult> {
 /** Desativa (bloqueia login) ou reativa um usuário. Reversível. */
 export async function setUserActive(input: unknown): Promise<ActionResult> {
   if (!isSupabaseConfigured) return fail("Configure o Supabase.");
-  if (!(await isAdminUser())) return fail("Acesso negado.");
+  if (!(await isSuperAdmin()))
+    return fail("Apenas super administradores podem gerenciar usuários.");
 
   const parsed = setActiveSchema.safeParse(input);
   if (!parsed.success) return fail("Dados inválidos.");
@@ -171,11 +180,11 @@ export async function setUserActive(input: unknown): Promise<ActionResult> {
     return fail("Service role não configurada.");
   }
 
-  // O administrador nativo não pode ser desativado.
+  // O dono do sistema não pode ser desativado.
   const { data: target } = await admin.auth.admin.getUserById(userId);
   const email = target.user?.email ?? "";
-  if (email.toLowerCase() === NATIVE_ADMIN_EMAIL) {
-    return fail("O administrador nativo não pode ser desativado.");
+  if (isOwnerUser(target.user)) {
+    return fail("O dono do sistema não pode ser desativado.");
   }
 
   const { error } = await admin.auth.admin.updateUserById(userId, {
@@ -193,7 +202,8 @@ export async function setUserActive(input: unknown): Promise<ActionResult> {
 /** Exclui um usuário de forma definitiva (bloqueado se tiver pedidos). */
 export async function deleteUser(input: unknown): Promise<ActionResult> {
   if (!isSupabaseConfigured) return fail("Configure o Supabase.");
-  if (!(await isAdminUser())) return fail("Acesso negado.");
+  if (!(await isSuperAdmin()))
+    return fail("Apenas super administradores podem gerenciar usuários.");
 
   const parsed = deleteUserSchema.safeParse(input);
   if (!parsed.success) return fail("Dados inválidos.");
@@ -212,8 +222,8 @@ export async function deleteUser(input: unknown): Promise<ActionResult> {
   const { data: target } = await admin.auth.admin.getUserById(userId);
   const email = target.user?.email ?? "";
   const name = (target.user?.user_metadata?.full_name as string | undefined) ?? "";
-  if (email.toLowerCase() === NATIVE_ADMIN_EMAIL) {
-    return fail("O administrador nativo não pode ser excluído.");
+  if (isOwnerUser(target.user)) {
+    return fail("O dono do sistema não pode ser excluído.");
   }
 
   const { data: profile } = await admin

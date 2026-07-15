@@ -1,7 +1,8 @@
 import { AccountForm } from "@/components/admin/account-form";
-import { NATIVE_ADMIN_EMAIL, getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isOwner } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = { title: "Minha conta" };
 
@@ -9,9 +10,11 @@ export const metadata: Metadata = { title: "Minha conta" };
 export const dynamic = "force-dynamic";
 
 export default async function ContaPage() {
+  // Só o dono do sistema gerencia as próprias credenciais.
+  if (isSupabaseConfigured && !(await isOwner())) redirect("/admin");
+
   const user = await getCurrentUser();
   const email = user?.email ?? "";
-  const canChangeEmail = isSupabaseConfigured && email.toLowerCase() !== NATIVE_ADMIN_EMAIL;
 
   return (
     <div className="flex flex-col gap-4">
@@ -29,7 +32,7 @@ export default async function ContaPage() {
           Conecte o Supabase para gerenciar a sua conta.
         </div>
       ) : (
-        <AccountForm email={email} canChangeEmail={canChangeEmail} />
+        <AccountForm email={email} />
       )}
     </div>
   );

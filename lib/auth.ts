@@ -43,15 +43,39 @@ export async function isAdminUser(): Promise<boolean> {
   return profile?.role === "admin" || profile?.role === "super_admin";
 }
 
-/** E-mail do administrador NATIVO (único com acesso aos logs de auditoria). */
+/** True se o usuário atual é super administrador. */
+export async function isSuperAdmin(): Promise<boolean> {
+  const profile = await getProfile();
+  return profile?.role === "super_admin";
+}
+
+/** E-mail do DONO do sistema no bootstrap (fallback quando a flag não existe). */
 export const NATIVE_ADMIN_EMAIL = (
   process.env.NATIVE_ADMIN_EMAIL ?? "casadefiladelfia@gmail.com"
 ).toLowerCase();
 
-/** True apenas para o administrador nativo — dono dos logs de acesso. */
+/**
+ * True se o usuário é o DONO (administrador nativo). A identidade NÃO depende do
+ * e-mail: a flag app_metadata.is_owner sobrevive a trocas de e-mail. O e-mail do
+ * bootstrap (NATIVE_ADMIN_EMAIL) é só o fallback enquanto a flag ainda não foi
+ * gravada — assim a proteção funciona já na primeira execução.
+ */
+export function isOwnerUser(
+  user: Pick<User, "email" | "app_metadata"> | null | undefined,
+): boolean {
+  if (!user) return false;
+  if ((user.app_metadata as { is_owner?: boolean } | undefined)?.is_owner === true) return true;
+  return (user.email ?? "").toLowerCase() === NATIVE_ADMIN_EMAIL;
+}
+
+/** True apenas para o dono do sistema (sessão atual). */
+export async function isOwner(): Promise<boolean> {
+  return isOwnerUser(await getCurrentUser());
+}
+
+/** Alias histórico — o "administrador nativo" é o dono. Usado nos logs de acesso. */
 export async function isNativeAdmin(): Promise<boolean> {
-  const user = await getCurrentUser();
-  return (user?.email ?? "").toLowerCase() === NATIVE_ADMIN_EMAIL;
+  return isOwner();
 }
 
 /**

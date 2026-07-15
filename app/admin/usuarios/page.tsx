@@ -4,7 +4,7 @@ import { UserCreateForm } from "@/components/admin/user-create-form";
 import { UserRoleSelect } from "@/components/admin/user-role-select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { NATIVE_ADMIN_EMAIL, getCurrentUser } from "@/lib/auth";
+import { getProfile } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { listAdminUsers } from "@/lib/queries/admin";
 import { Users } from "lucide-react";
@@ -18,7 +18,9 @@ function initials(name: string | null, email: string): string {
 }
 
 export default async function UsuariosPage() {
-  const [users, me] = await Promise.all([listAdminUsers(), getCurrentUser()]);
+  const [users, me] = await Promise.all([listAdminUsers(), getProfile()]);
+  // Só super administradores criam, promovem, desativam e excluem usuários.
+  const canManage = me?.role === "super_admin";
 
   return (
     <div className="flex flex-col gap-4">
@@ -26,8 +28,8 @@ export default async function UsuariosPage() {
         <p className="eyebrow">Administração</p>
         <h1 className="mt-1 text-xl font-semibold">Usuários</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Somente quem acessa o <strong>painel administrativo</strong>. Os clientes da loja ficam
-          no menu <strong>Clientes</strong>.
+          Somente quem acessa o <strong>painel administrativo</strong>. Os clientes da loja ficam no
+          menu <strong>Clientes</strong>.
         </p>
       </div>
 
@@ -38,7 +40,16 @@ export default async function UsuariosPage() {
         </div>
       )}
 
-      <UserCreateForm />
+      {canManage ? (
+        <UserCreateForm />
+      ) : (
+        isSupabaseConfigured && (
+          <div className="rounded-lg border border-border bg-secondary/40 px-4 py-3 text-sm text-muted-foreground">
+            Apenas <strong>super administradores</strong> podem criar, promover, desativar ou
+            excluir usuários. Você pode consultar a lista abaixo.
+          </div>
+        )
+      )}
 
       <Card>
         <CardIconHeader
@@ -55,8 +66,8 @@ export default async function UsuariosPage() {
             <ul className="flex flex-col gap-2">
               {users.map((u) => {
                 const isSelf = u.id === me?.id;
-                const isNative = u.email.toLowerCase() === NATIVE_ADMIN_EMAIL;
-                const canManage = !isSelf && !isNative;
+                // Super admin gerencia todos, exceto a si mesmo e o dono do sistema.
+                const canModerate = canManage && !isSelf && !u.isOwner;
                 return (
                   <li
                     key={u.id}
@@ -75,7 +86,8 @@ export default async function UsuariosPage() {
                       <div className="min-w-0">
                         <p className="flex flex-wrap items-center gap-2 truncate font-medium">
                           {u.full_name ?? "Sem nome"}
-                          {isSelf && <Badge variant="secondary">você</Badge>}
+                          {u.isOwner && <Badge variant="secondary">dono</Badge>}
+                          {isSelf && !u.isOwner && <Badge variant="secondary">você</Badge>}
                           {!u.active && (
                             <Badge className="border-destructive/40 bg-destructive/10 text-destructive">
                               Inativo
@@ -86,8 +98,14 @@ export default async function UsuariosPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <UserRoleSelect userId={u.id} role={u.role} disabled={isSelf} />
                       {canManage && (
+                        <UserRoleSelect
+                          userId={u.id}
+                          role={u.role}
+                          disabled={isSelf || u.isOwner}
+                        />
+                      )}
+                      {canModerate && (
                         <UserActions userId={u.id} active={u.active} ordersCount={u.ordersCount} />
                       )}
                     </div>

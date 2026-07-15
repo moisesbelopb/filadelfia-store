@@ -19,22 +19,16 @@ import { AtSign, KeyRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
-export function AccountForm({
-  email,
-  canChangeEmail,
-}: {
-  email: string;
-  canChangeEmail: boolean;
-}) {
+export function AccountForm({ email }: { email: string }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <EmailCard email={email} canChangeEmail={canChangeEmail} />
+      <EmailCard email={email} />
       <PasswordCard />
     </div>
   );
 }
 
-function EmailCard({ email, canChangeEmail }: { email: string; canChangeEmail: boolean }) {
+function EmailCard({ email }: { email: string }) {
   const router = useRouter();
   const {
     register,
@@ -69,46 +63,33 @@ function EmailCard({ email, canChangeEmail }: { email: string; canChangeEmail: b
         description="Este é o e-mail usado para entrar no painel."
       />
       <CardContent>
-        {canChangeEmail ? (
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>E-mail atual</Label>
-              <Input value={email} disabled readOnly />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="newEmail">Novo e-mail</Label>
-              <Input id="newEmail" type="email" autoComplete="off" {...register("newEmail")} />
-              {errors.newEmail && (
-                <p className="text-xs text-destructive">{errors.newEmail.message}</p>
-              )}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emailCurrentPassword">Senha atual (para confirmar)</Label>
-              <PasswordInput
-                id="emailCurrentPassword"
-                autoComplete="current-password"
-                {...register("currentPassword")}
-              />
-              {errors.currentPassword && (
-                <p className="text-xs text-destructive">{errors.currentPassword.message}</p>
-              )}
-            </div>
-            <Button type="submit" disabled={isSubmitting} className="self-start">
-              {isSubmitting ? "Alterando..." : "Alterar e-mail"}
-            </Button>
-          </form>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-col gap-1.5">
-              <Label>E-mail atual</Label>
-              <Input value={email} disabled readOnly />
-            </div>
-            <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
-              O e-mail do administrador nativo não pode ser alterado por aqui, pois é usado nas
-              permissões do sistema.
-            </p>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label>E-mail atual</Label>
+            <Input value={email} disabled readOnly />
           </div>
-        )}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="newEmail">Novo e-mail</Label>
+            <Input id="newEmail" type="email" autoComplete="off" {...register("newEmail")} />
+            {errors.newEmail && (
+              <p className="text-xs text-destructive">{errors.newEmail.message}</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="emailCurrentPassword">Senha atual (para confirmar)</Label>
+            <PasswordInput
+              id="emailCurrentPassword"
+              autoComplete="current-password"
+              {...register("currentPassword")}
+            />
+            {errors.currentPassword && (
+              <p className="text-xs text-destructive">{errors.currentPassword.message}</p>
+            )}
+          </div>
+          <Button type="submit" disabled={isSubmitting} className="self-start">
+            {isSubmitting ? "Alterando..." : "Alterar e-mail"}
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );

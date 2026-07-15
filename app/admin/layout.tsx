@@ -1,7 +1,7 @@
 import { signOutAction } from "@/actions/auth";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { Button } from "@/components/ui/button";
-import { isAdminUser, isNativeAdmin } from "@/lib/auth";
+import { isAdminUser, isOwner } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { Store } from "lucide-react";
 import type { Metadata } from "next";
@@ -22,8 +22,8 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  // O link de "Logs de acesso" só aparece para o administrador nativo.
-  const showLogs = isSupabaseConfigured && (await isNativeAdmin());
+  // "Logs de acesso" e "Minha conta" só aparecem para o dono do sistema.
+  const owner = isSupabaseConfigured && (await isOwner());
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -64,7 +64,7 @@ export default async function AdminLayout({
         <aside className="lg:w-56 lg:shrink-0 lg:border-r lg:border-border lg:pr-6 print:hidden">
           <div className="lg:sticky lg:top-20">
             <p className="eyebrow mb-3 hidden px-1 lg:block">Navegação</p>
-            <AdminNav showLogs={showLogs} />
+            <AdminNav showLogs={owner} showAccount={owner} />
           </div>
         </aside>
         <main className="min-w-0 flex-1">{children}</main>
