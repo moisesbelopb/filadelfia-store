@@ -150,6 +150,29 @@
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
+
+  /* Campos de data (type="date"). O controle nativo tem uma largura mínima
+     intrínseca: no mobile ele NÃO encolhe abaixo do conteúdo e "vaza" para fora
+     da coluna/card. Zerar a margem do valor + alinhar à esquerda e, no mobile,
+     remover a aparência nativa faz o `width:100%` mandar na caixa de novo. */
+  input[type="date"] {
+    min-width: 0;
+  }
+  input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+    padding: 0;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    margin-inline-start: 0;
+    padding: 0;
+  }
+  @media (max-width: 639px) {
+    input[type="date"] {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+  }
 }
 
 @layer components {
