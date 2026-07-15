@@ -6,15 +6,26 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { notificationEventLabel } from "@/lib/email/defaults";
 import { formatScheduled } from "@/lib/orders/delivery";
 import { PAYMENT_LABEL } from "@/lib/orders/fsm";
 import { pixMessage, whatsappLink } from "@/lib/orders/template";
 import { getAdminOrder, getMessageTemplate, getSetting } from "@/lib/queries/admin";
 import { formatBRL, formatDateTime } from "@/lib/utils";
-import type { PixSettings } from "@/types/db";
+import type { NotificationStatus, PixSettings } from "@/types/db";
 import { ChevronLeft, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+/** Status da notificação em linguagem clara + cor do selo. */
+const NOTIFICATION_STATUS: Record<
+  NotificationStatus,
+  { label: string; variant: "success" | "warning" | "destructive" }
+> = {
+  enviado: { label: "Enviado", variant: "success" },
+  pendente: { label: "Pendente", variant: "warning" },
+  erro: { label: "Falhou", variant: "destructive" },
+};
 
 export default async function AdminOrderDetail({
   params,
@@ -165,19 +176,24 @@ export default async function AdminOrderDetail({
       {logs.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Notificações enviadas</CardTitle>
+            <CardTitle className="text-base">Avisos enviados ao cliente</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
-            {logs.map((log) => (
-              <div key={log.id} className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">
-                  {log.template_key} · {formatDateTime(log.created_at)}
-                </span>
-                <Badge variant={log.status === "enviado" ? "success" : "destructive"}>
-                  {log.status}
-                </Badge>
-              </div>
-            ))}
+          <CardContent className="flex flex-col gap-3 text-sm">
+            {logs.map((log) => {
+              const st = NOTIFICATION_STATUS[log.status];
+              const canal = log.channel === "email" ? "e-mail" : "WhatsApp";
+              return (
+                <div key={log.id} className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium">{notificationEventLabel(log.template_key)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Por {canal} · {formatDateTime(log.created_at)}
+                    </p>
+                  </div>
+                  <Badge variant={st.variant}>{st.label}</Badge>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       )}

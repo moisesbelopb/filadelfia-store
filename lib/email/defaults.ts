@@ -63,6 +63,20 @@ export const EMAIL_EVENTS = [
 /** Eventos que exibem o motivo informado pelo admin. */
 export const REASON_EVENTS: OrderEmailEvent[] = ["order_rejected", "order_canceled"];
 
+/** Mapa chave-do-evento → rótulo humano (ex.: "order_accepted" → "Pedido confirmado"). */
+const EVENT_LABEL: Record<string, string> = Object.fromEntries(
+  EMAIL_EVENTS.map((e) => [e.key, e.label]),
+);
+
+/**
+ * Rótulo em português para a chave de uma notificação (notification_logs).
+ * Usado no painel para não mostrar termos técnicos como "order_accepted" ao
+ * lojista. Chaves desconhecidas caem num rótulo genérico e claro.
+ */
+export function notificationEventLabel(key: string | null | undefined): string {
+  return (key && EVENT_LABEL[key]) || "Aviso sobre o pedido";
+}
+
 /**
  * E-mail correspondente a uma transição de status. Retorna null quando o
  * status não notifica o cliente (`solicitado` já é coberto por order_placed,
