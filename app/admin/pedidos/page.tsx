@@ -1,12 +1,17 @@
+import { PeriodFilter } from "@/components/admin/period-filter";
 import { OrderStatusBadge } from "@/components/loja/order-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { resolvePeriod } from "@/lib/dashboard-period";
 import { STATUS_LABEL } from "@/lib/orders/fsm";
 import { listAdminOrders } from "@/lib/queries/admin";
 import { cardHighlight, cn, formatBRL, formatDateTime } from "@/lib/utils";
 import type { OrderStatus } from "@/types/db";
 import { ClipboardList, Search } from "lucide-react";
 import Link from "next/link";
+
+// Depende do período/searchParams e da data atual — sempre dinâmico.
+export const dynamic = "force-dynamic";
 
 const FILTERS: (OrderStatus | "todos")[] = [
   "todos",
@@ -22,17 +27,27 @@ const FILTERS: (OrderStatus | "todos")[] = [
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    q?: string;
+    period?: string;
+    from?: string;
+    to?: string;
+  }>;
 }) {
-  const { status, q } = await searchParams;
+  const { status, q, period: periodRaw, from, to } = await searchParams;
   const active = (status as OrderStatus | undefined) ?? undefined;
-  const orders = await listAdminOrders(active, q);
+  const range = resolvePeriod(periodRaw, from, to);
+  const orders = await listAdminOrders(active, q, { start: range.start, end: range.end });
 
-  // Preserva a busca ao trocar de status (e vice-versa).
+  // Preserva status, busca E período ao trocar qualquer um deles.
   const qs = (extra: Record<string, string | undefined>) => {
     const params = new URLSearchParams();
     if (active) params.set("status", active);
     if (q) params.set("q", q);
+    if (periodRaw) params.set("period", periodRaw);
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
     for (const [k, v] of Object.entries(extra)) {
       if (v) params.set(k, v);
       else params.delete(k);
@@ -44,7 +59,12 @@ export default async function AdminOrdersPage({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Pedidos</h1>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-xl font-semibold">Pedidos</h1>
+          <p className="text-sm text-muted-foreground">
+            {range.label} · {orders.length} {orders.length === 1 ? "pedido" : "pedidos"}
+          </p>
+        </div>
         <Button asChild variant="outline" size="sm">
           <Link href="/admin/pedidos/separacao">
             <ClipboardList className="size-4" /> Lista de separação
@@ -52,8 +72,19 @@ export default async function AdminOrdersPage({
         </Button>
       </div>
 
+      <PeriodFilter
+        basePath="/admin/pedidos"
+        active={range.period}
+        from={range.from}
+        to={range.to}
+        params={{ status: active, q }}
+      />
+
       <form className="flex gap-2">
         {active && <input type="hidden" name="status" value={active} />}
+        {periodRaw && <input type="hidden" name="period" value={periodRaw} />}
+        {from && <input type="hidden" name="from" value={from} />}
+        {to && <input type="hidden" name="to" value={to} />}
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -93,7 +124,7 @@ export default async function AdminOrdersPage({
         <p className="py-10 text-center text-sm text-muted-foreground">
           {q
             ? `Nenhum pedido encontrado para “${q}”.`
-            : `Nenhum pedido ${active ? `com status “${STATUS_LABEL[active]}”` : "ainda"}.`}
+            : `Nenhum pedido ${active ? `com status “${STATUS_LABEL[active]}”` : ""} neste período.`}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

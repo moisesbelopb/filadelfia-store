@@ -176,11 +176,16 @@ export async function listCustomers(): Promise<CustomerRow[]> {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-export async function listAdminOrders(status?: OrderStatus, q?: string): Promise<Order[]> {
+export async function listAdminOrders(
+  status?: OrderStatus,
+  q?: string,
+  range?: DashboardRange,
+): Promise<Order[]> {
   if (!isSupabaseConfigured) return [];
   const supabase = await createClient();
   let query = supabase.from("orders").select("*").order("created_at", { ascending: false });
   if (status) query = query.eq("status", status);
+  if (range) query = query.gte("created_at", range.start).lte("created_at", range.end);
   const { data } = await query;
   let rows = (data as Order[] | null) ?? [];
 
