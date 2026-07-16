@@ -8,6 +8,8 @@ import {
 } from "@/actions/admin/products";
 import { ProductThumb } from "@/components/loja/product-thumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { compressProductImage } from "@/lib/image/compress";
+import { ACCEPTED_IMAGE_LABEL, IMAGE_MAX_DIMENSION } from "@/lib/image/criteria";
 import { toast } from "@/lib/use-toast";
 import { cn } from "@/lib/utils";
 import type { ProductImage } from "@/types/db";
@@ -29,9 +31,16 @@ export function ProductImagesManager({
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const fd = new FormData();
-    fd.set("file", file);
     startTransition(async () => {
+      // Converte para WebP e reduz no navegador antes de subir (arquivo leve).
+      const prepared = await compressProductImage(file);
+      if (!prepared.ok) {
+        toast({ variant: "error", title: "Imagem inválida", description: prepared.error });
+        if (inputRef.current) inputRef.current.value = "";
+        return;
+      }
+      const fd = new FormData();
+      fd.set("file", prepared.file);
       const res = await uploadProductImage(productId, fd);
       if (!res.ok) toast({ variant: "error", title: "Falha no upload", description: res.error });
       else toast({ variant: "success", title: "Imagem enviada" });
@@ -160,11 +169,22 @@ export function ProductImagesManager({
             <span className="text-xs">Adicionar</span>
           </button>
         </div>
-        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={onFile}
+        />
         <p className="text-xs text-muted-foreground">
-          JPG/PNG até 5 MB. Passe o mouse na foto para as ações:{" "}
-          <Star className="inline size-3 align-[-2px]" /> define a <strong>principal</strong> (foto
-          em repouso) e <MousePointer2 className="inline size-3 align-[-2px]" /> define a{" "}
+          {ACCEPTED_IMAGE_LABEL}. Convertemos para <strong>WebP</strong> e reduzimos para no máx.{" "}
+          {IMAGE_MAX_DIMENSION}px automaticamente — a foto fica leve sem perder qualidade. Melhor
+          resultado: fotos nítidas, de preferência em pé (proporção 4:5).
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Passe o mouse na foto para as ações: <Star className="inline size-3 align-[-2px]" />{" "}
+          define a <strong>principal</strong> (foto em repouso) e{" "}
+          <MousePointer2 className="inline size-3 align-[-2px]" /> define a{" "}
           <strong>foto alternativa</strong> (aparece ao passar o mouse no card da loja).
         </p>
       </CardContent>

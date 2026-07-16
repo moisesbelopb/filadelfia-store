@@ -4,13 +4,12 @@ import { type ActionResult, fail, ok } from "@/lib/action-result";
 import { logAudit } from "@/lib/audit";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
+import { EXT_BY_TYPE, IMAGE_MAX_STORED_BYTES } from "@/lib/image/criteria";
 import { CATALOG_TAG } from "@/lib/queries/catalog";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
 import { productSchema, productVariantsSchema } from "@/lib/validators/admin";
 import { revalidatePath, revalidateTag } from "next/cache";
-
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 async function guard(): Promise<{ ok: false; error: string } | null> {
   if (!isSupabaseConfigured) return fail("Configure o Supabase.");
@@ -216,11 +215,14 @@ export async function uploadProductImage(
 
   const file = formData.get("file");
   if (!(file instanceof File)) return fail("Arquivo inválido.");
-  if (!file.type.startsWith("image/")) return fail("Envie uma imagem.");
-  if (file.size > MAX_IMAGE_BYTES) return fail("Imagem acima de 5 MB.");
+  // Extensão vem do content-type real (não confia no nome do arquivo).
+  const ext = EXT_BY_TYPE[file.type.toLowerCase()];
+  if (!ext) return fail("Formato não aceito. Envie JPG, PNG ou WebP.");
+  if (file.size > IMAGE_MAX_STORED_BYTES) {
+    return fail("Imagem muito pesada (máx. 3 MB). Use uma foto menor.");
+  }
 
   const supabase = await createClient();
-  const ext = file.name.split(".").pop() ?? "jpg";
   const path = `${productId}/${crypto.randomUUID()}.${ext}`;
 
   const { error: upErr } = await supabase.storage

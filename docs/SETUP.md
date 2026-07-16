@@ -179,6 +179,30 @@ Sem as variáveis, o envio é silenciosamente ignorado (o pedido nunca falha por
 causa do e-mail). Cada envio real fica registrado em `notification_logs`
 (`channel = 'email'`). Templates: `lib/email/templates.ts`.
 
+## 5.1 Critérios das imagens de produto
+
+Para as fotos não pesarem no Storage nem deixarem a vitrine lenta, o upload
+segue critérios fixos (fonte: `lib/image/criteria.ts`):
+
+| Critério | Valor | Por quê |
+| --- | --- | --- |
+| Formato gravado | **WebP** | ~25–35% menor que JPEG na mesma qualidade; acaba com PNG pesado. |
+| Entrada aceita | **JPG, PNG ou WebP** | O que o lojista costuma ter; tudo é convertido para WebP. |
+| Dimensão máxima | **1600px** no lado maior | Cobre telas retina (maior exibição ~720px); só reduz, nunca amplia. |
+| Qualidade WebP | **0,8** | Imperceptível no catálogo, ótima compressão. |
+| Tamanho de entrada | até **15 MB** | Aceita foto de celular; é comprimida antes de subir. |
+| Tamanho gravado | até **3 MB** (guard) | Após a compressão fica em ~100–300 KB. |
+
+**Como funciona:** ao adicionar a foto (Produtos → editar → Fotos), o
+navegador **converte para WebP e reduz para 1600px** antes de enviar
+(`lib/image/compress.ts`), respeitando a orientação da câmera. O servidor
+(`uploadProductImage`) revalida tipo e tamanho e grava no bucket
+`product-images`. Na loja, o `next/image` ainda reotimiza por dispositivo
+(AVIF/WebP), então a fonte só precisa ser leve.
+
+Recomendação de foto: nítida, iluminada, de preferência **em pé (4:5)** — o
+storefront recorta para preencher, então retrato rende melhor.
+
 ## 6. Deploy na Vercel + domínio (Registro.br)
 
 1. Importe o repositório na [Vercel](https://vercel.com).
