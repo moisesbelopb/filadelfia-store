@@ -193,9 +193,10 @@ function VisitsCard({ visits }: { visits: VisitStats }) {
         <span className="text-xs text-muted-foreground">no período selecionado</span>
       </CardHeader>
       <CardContent className="pt-4 sm:pt-5">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,210px)_minmax(0,1fr)]">
-          {/* Métricas em blocos: número grande com o rótulo abaixo. */}
-          <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
+          {/* Métricas em blocos: número grande com o rótulo abaixo.
+              self-start: não estica junto com o painel de páginas. */}
+          <div className="grid grid-cols-2 gap-3 self-start">
             <Metric icon={Users} label="Visitantes" value={visits.uniques} />
             <Metric icon={Eye} label="Visualizações de página" value={visits.views} />
           </div>
@@ -236,11 +237,13 @@ function Metric({
   value: number;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-border bg-background p-3">
+    <div className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-background p-3">
       <span className="font-display text-3xl font-semibold tabular-nums">{value}</span>
       <span className="flex items-start gap-1.5 text-xs font-medium uppercase leading-tight tracking-wider text-muted-foreground">
         <Icon className="mt-0.5 size-3.5 shrink-0" />
-        {label}
+        {/* min-w-0 + break-words: o rótulo quebra dentro do bloco em vez de
+            vazar para fora (VISUALIZAÇÕES é uma palavra longa). */}
+        <span className="min-w-0 break-words">{label}</span>
       </span>
     </div>
   );
