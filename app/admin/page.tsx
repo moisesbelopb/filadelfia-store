@@ -179,7 +179,10 @@ export default async function AdminDashboard({
   );
 }
 
-/** Acessos à loja no período: visitas, visitantes e páginas mais acessadas. */
+/**
+ * Acessos à loja no período. Os nomes espelham o painel da Vercel:
+ * Visitors → Visitantes e Page Views → Visualizações de página.
+ */
 function VisitsCard({ visits }: { visits: VisitStats }) {
   return (
     <Card className="flex flex-col">
@@ -190,16 +193,8 @@ function VisitsCard({ visits }: { visits: VisitStats }) {
         <span className="text-xs text-muted-foreground">no período selecionado</span>
       </CardHeader>
       <CardContent className="pt-4 sm:pt-5">
-        <div className="grid gap-5 sm:grid-cols-[minmax(0,220px)_1fr] sm:gap-8">
+        <div className="grid gap-5 sm:grid-cols-[minmax(0,240px)_1fr] sm:gap-8">
           <div className="flex gap-6">
-            <div className="flex flex-col gap-1">
-              <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <Eye className="size-3.5" /> Navegação
-              </span>
-              <span className="font-display text-3xl font-semibold tabular-nums">
-                {visits.views}
-              </span>
-            </div>
             <div className="flex flex-col gap-1">
               <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 <Users className="size-3.5" /> Visitantes
@@ -208,11 +203,19 @@ function VisitsCard({ visits }: { visits: VisitStats }) {
                 {visits.uniques}
               </span>
             </div>
+            <div className="flex flex-col gap-1">
+              <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <Eye className="size-3.5" /> Visualizações de página
+              </span>
+              <span className="font-display text-3xl font-semibold tabular-nums">
+                {visits.views}
+              </span>
+            </div>
           </div>
 
           <div className="min-w-0">
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Páginas mais acessadas
+              Páginas
             </p>
             {visits.topPages.length === 0 ? (
               <p className="text-sm text-muted-foreground">Sem acessos no período.</p>
