@@ -193,33 +193,28 @@ function VisitsCard({ visits }: { visits: VisitStats }) {
         <span className="text-xs text-muted-foreground">no período selecionado</span>
       </CardHeader>
       <CardContent className="pt-4 sm:pt-5">
-        <div className="grid gap-5 sm:grid-cols-[minmax(0,240px)_1fr] sm:gap-8">
-          {/* Número em cima e rótulo embaixo (como os KPIs): o rótulo pode
-              quebrar em duas linhas sem desalinhar os números. */}
-          <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)] lg:gap-8">
+          {/* Métricas em blocos: número grande com o rótulo abaixo. */}
+          <div className="grid grid-cols-2 gap-3">
             <Metric icon={Users} label="Visitantes" value={visits.uniques} />
             <Metric icon={Eye} label="Visualizações de página" value={visits.views} />
           </div>
 
-          <div className="min-w-0">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Páginas
-            </p>
+          {/* Páginas com barra proporcional: a largura vira informação em vez
+              de espaço vazio entre o caminho e o número. */}
+          <div className="flex min-w-0 flex-col">
+            <div className="mb-2 flex items-baseline justify-between gap-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Páginas
+              </p>
+              {visits.topPages.length > 0 && (
+                <p className="text-xs text-muted-foreground">visualizações</p>
+              )}
+            </div>
             {visits.topPages.length === 0 ? (
               <p className="text-sm text-muted-foreground">Sem acessos no período.</p>
             ) : (
-              <ul className="flex flex-col gap-1.5">
-                {visits.topPages.map((p) => (
-                  <li key={p.path} className="flex items-center justify-between gap-3">
-                    <span className="min-w-0 truncate font-mono text-xs text-foreground">
-                      {p.path === "/" ? "/ (início)" : p.path}
-                    </span>
-                    <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
-                      {p.views}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <PagesBars pages={visits.topPages} />
             )}
           </div>
         </div>
@@ -239,13 +234,38 @@ function Metric({
   value: number;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5">
+    <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-border bg-background p-3">
       <span className="font-display text-3xl font-semibold tabular-nums">{value}</span>
-      <span className="flex items-start gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <span className="flex items-start gap-1.5 text-xs font-medium uppercase leading-tight tracking-wider text-muted-foreground">
         <Icon className="mt-0.5 size-3.5 shrink-0" />
         {label}
       </span>
     </div>
+  );
+}
+
+/** Páginas mais acessadas com barra proporcional à mais acessada. */
+function PagesBars({ pages }: { pages: VisitStats["topPages"] }) {
+  const max = Math.max(1, ...pages.map((p) => p.views));
+  return (
+    <ul className="flex flex-col gap-1">
+      {pages.map((p) => (
+        <li
+          key={p.path}
+          className="relative flex items-center justify-between gap-3 overflow-hidden rounded-md px-2 py-1.5"
+        >
+          <span
+            aria-hidden
+            className="absolute inset-y-0 left-0 rounded-md bg-secondary"
+            style={{ width: `${(p.views / max) * 100}%` }}
+          />
+          <span className="relative min-w-0 truncate font-mono text-xs text-foreground">
+            {p.path === "/" ? "/ (início)" : p.path}
+          </span>
+          <span className="relative shrink-0 text-sm font-semibold tabular-nums">{p.views}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
