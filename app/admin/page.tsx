@@ -245,6 +245,26 @@ function Metric({
   );
 }
 
+/**
+ * Nome legível da página para o lojista (em vez do caminho técnico).
+ * Caminhos desconhecidos caem no próprio caminho — melhor mostrar o cru do que
+ * inventar um nome errado.
+ */
+function pageLabel(path: string): string {
+  if (path === "/") return "Página inicial do site";
+  if (path === "/conta") return "Login de acesso na conta";
+  if (path === "/carrinho") return "Carrinho de compras";
+  if (path === "/checkout") return "Finalização do pedido";
+  if (path === "/pedidos") return "Meus pedidos";
+  if (path.startsWith("/pedidos/")) return "Detalhe de um pedido";
+  if (path === "/privacidade") return "Política de privacidade";
+  if (path.startsWith("/produtos/")) {
+    const slug = path.slice("/produtos/".length).replace(/-/g, " ").trim();
+    return slug ? `Produto: ${slug}` : "Página de produto";
+  }
+  return path;
+}
+
 /** Páginas mais acessadas com barra proporcional à mais acessada. */
 function PagesBars({ pages }: { pages: VisitStats["topPages"] }) {
   const max = Math.max(1, ...pages.map((p) => p.views));
@@ -259,8 +279,12 @@ function PagesBars({ pages }: { pages: VisitStats["topPages"] }) {
               className="absolute inset-y-0 left-0 rounded-md bg-secondary"
               style={{ width: `${(p.views / max) * 100}%` }}
             />
-            <span className="relative block truncate px-2 py-1.5 font-mono text-xs text-foreground">
-              {p.path === "/" ? "/ (início)" : p.path}
+            {/* title: mantém o caminho real acessível ao passar o mouse. */}
+            <span
+              title={p.path}
+              className="relative block truncate px-2 py-1.5 text-xs text-foreground"
+            >
+              {pageLabel(p.path)}
             </span>
           </div>
           <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums">
