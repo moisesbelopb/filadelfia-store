@@ -193,7 +193,7 @@ function VisitsCard({ visits }: { visits: VisitStats }) {
         <span className="text-xs text-muted-foreground">no período selecionado</span>
       </CardHeader>
       <CardContent className="pt-4 sm:pt-5">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)] lg:gap-8">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,210px)_minmax(0,1fr)] lg:gap-6">
           {/* Métricas em blocos: número grande com o rótulo abaixo. */}
           <div className="grid grid-cols-2 gap-3">
             <Metric icon={Users} label="Visitantes" value={visits.uniques} />
@@ -203,12 +203,13 @@ function VisitsCard({ visits }: { visits: VisitStats }) {
           {/* Páginas com barra proporcional: a largura vira informação em vez
               de espaço vazio entre o caminho e o número. */}
           <div className="flex min-w-0 flex-col">
-            <div className="mb-2 flex items-baseline justify-between gap-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <div className="mb-2 flex items-baseline gap-3">
+              <p className="flex-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Páginas
               </p>
               {visits.topPages.length > 0 && (
-                <p className="text-xs text-muted-foreground">visualizações</p>
+                // Mesma largura da coluna dos números, para o cabeçalho alinhar.
+                <p className="w-14 shrink-0 text-right text-xs text-muted-foreground">visual.</p>
               )}
             </div>
             {visits.topPages.length === 0 ? (
@@ -250,19 +251,21 @@ function PagesBars({ pages }: { pages: VisitStats["topPages"] }) {
   return (
     <ul className="flex flex-col gap-1">
       {pages.map((p) => (
-        <li
-          key={p.path}
-          className="relative flex items-center justify-between gap-3 overflow-hidden rounded-md px-2 py-1.5"
-        >
-          <span
-            aria-hidden
-            className="absolute inset-y-0 left-0 rounded-md bg-secondary"
-            style={{ width: `${(p.views / max) * 100}%` }}
-          />
-          <span className="relative min-w-0 truncate font-mono text-xs text-foreground">
-            {p.path === "/" ? "/ (início)" : p.path}
+        <li key={p.path} className="flex items-center gap-3">
+          {/* A barra ocupa só a área do caminho; o número tem coluna própria. */}
+          <div className="relative min-w-0 flex-1 overflow-hidden rounded-md">
+            <span
+              aria-hidden
+              className="absolute inset-y-0 left-0 rounded-md bg-secondary"
+              style={{ width: `${(p.views / max) * 100}%` }}
+            />
+            <span className="relative block truncate px-2 py-1.5 font-mono text-xs text-foreground">
+              {p.path === "/" ? "/ (início)" : p.path}
+            </span>
+          </div>
+          <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums">
+            {p.views}
           </span>
-          <span className="relative shrink-0 text-sm font-semibold tabular-nums">{p.views}</span>
         </li>
       ))}
     </ul>
