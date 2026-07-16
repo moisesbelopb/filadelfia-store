@@ -194,23 +194,11 @@ function VisitsCard({ visits }: { visits: VisitStats }) {
       </CardHeader>
       <CardContent className="pt-4 sm:pt-5">
         <div className="grid gap-5 sm:grid-cols-[minmax(0,240px)_1fr] sm:gap-8">
-          <div className="flex gap-6">
-            <div className="flex flex-col gap-1">
-              <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <Users className="size-3.5" /> Visitantes
-              </span>
-              <span className="font-display text-3xl font-semibold tabular-nums">
-                {visits.uniques}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <Eye className="size-3.5" /> Visualizações de página
-              </span>
-              <span className="font-display text-3xl font-semibold tabular-nums">
-                {visits.views}
-              </span>
-            </div>
+          {/* Número em cima e rótulo embaixo (como os KPIs): o rótulo pode
+              quebrar em duas linhas sem desalinhar os números. */}
+          <div className="grid grid-cols-2 gap-4">
+            <Metric icon={Users} label="Visitantes" value={visits.uniques} />
+            <Metric icon={Eye} label="Visualizações de página" value={visits.views} />
           </div>
 
           <div className="min-w-0">
@@ -237,6 +225,27 @@ function VisitsCard({ visits }: { visits: VisitStats }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/** Um número de acesso (visitantes / visualizações) com rótulo abaixo. */
+function Metric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="font-display text-3xl font-semibold tabular-nums">{value}</span>
+      <span className="flex items-start gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <Icon className="mt-0.5 size-3.5 shrink-0" />
+        {label}
+      </span>
+    </div>
   );
 }
 
