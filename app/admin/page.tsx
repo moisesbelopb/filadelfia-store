@@ -239,10 +239,11 @@ function Metric({
   return (
     <div className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-background p-3">
       <span className="font-display text-3xl font-semibold tabular-nums">{value}</span>
-      <span className="flex items-start gap-1.5 text-xs font-medium uppercase leading-tight tracking-wider text-muted-foreground">
-        <Icon className="mt-0.5 size-3.5 shrink-0" />
-        {/* min-w-0 + break-words: o rótulo quebra dentro do bloco em vez de
-            vazar para fora (VISUALIZAÇÕES é uma palavra longa). */}
+      {/* Fonte menor e tracking curto: "VISUALIZAÇÕES" cabe inteira na linha
+          (antes quebrava no meio da palavra). min-w-0 + break-words seguram
+          qualquer rótulo maior sem vazar do bloco. */}
+      <span className="flex items-start gap-1 text-[0.65rem] font-medium uppercase leading-tight tracking-wide text-muted-foreground">
+        <Icon className="mt-px size-3 shrink-0" />
         <span className="min-w-0 break-words">{label}</span>
       </span>
     </div>
