@@ -193,29 +193,30 @@ function VisitsCard({ visits }: { visits: VisitStats }) {
         <span className="text-xs text-muted-foreground">no período selecionado</span>
       </CardHeader>
       <CardContent className="pt-4 sm:pt-5">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,210px)_minmax(0,1fr)] lg:gap-6">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,210px)_minmax(0,1fr)]">
           {/* Métricas em blocos: número grande com o rótulo abaixo. */}
           <div className="grid grid-cols-2 gap-3">
             <Metric icon={Users} label="Visitantes" value={visits.uniques} />
             <Metric icon={Eye} label="Visualizações de página" value={visits.views} />
           </div>
 
-          {/* Páginas com barra proporcional: a largura vira informação em vez
-              de espaço vazio entre o caminho e o número. */}
-          <div className="flex min-w-0 flex-col">
-            <div className="mb-2 flex items-baseline gap-3">
-              <p className="flex-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Páginas
-              </p>
-              {visits.topPages.length > 0 && (
-                // Mesma largura da coluna dos números, para o cabeçalho alinhar.
-                <p className="w-14 shrink-0 text-right text-xs text-muted-foreground">visual.</p>
-              )}
-            </div>
+          {/* Painel de páginas: cabeçalho de colunas + linhas com barra. */}
+          <div className="min-w-0 rounded-xl border border-border p-4">
+            <p className="text-sm font-semibold uppercase tracking-wider">Páginas</p>
             {visits.topPages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem acessos no período.</p>
+              <p className="mt-3 text-sm text-muted-foreground">Sem acessos no período.</p>
             ) : (
-              <PagesBars pages={visits.topPages} />
+              <>
+                <div className="mt-3 flex items-center justify-between gap-3 border-y border-border py-2">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Página
+                  </span>
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Visualizações
+                  </span>
+                </div>
+                <PagesBars pages={visits.topPages} />
+              </>
             )}
           </div>
         </div>
@@ -265,29 +266,34 @@ function pageLabel(path: string): string {
   return path;
 }
 
-/** Páginas mais acessadas com barra proporcional à mais acessada. */
+/**
+ * Linhas das páginas: nome · barra proporcional · nº de visualizações.
+ * A barra fica entre o nome e o número (trilha + preenchimento); no mobile ela
+ * sai de cena para o nome e o número respirarem.
+ */
 function PagesBars({ pages }: { pages: VisitStats["topPages"] }) {
   const max = Math.max(1, ...pages.map((p) => p.views));
   return (
-    <ul className="flex flex-col gap-1">
+    <ul className="divide-y divide-border">
       {pages.map((p) => (
-        <li key={p.path} className="flex items-center gap-3">
-          {/* A barra ocupa só a área do caminho; o número tem coluna própria. */}
-          <div className="relative min-w-0 flex-1 overflow-hidden rounded-md">
-            <span
-              aria-hidden
-              className="absolute inset-y-0 left-0 rounded-md bg-secondary"
+        <li key={p.path} className="flex items-center gap-3 py-3 sm:gap-4">
+          {/* title: mantém o caminho real acessível ao passar o mouse. */}
+          <span
+            title={p.path}
+            className="min-w-0 flex-1 truncate text-sm text-foreground sm:w-52 sm:flex-none"
+          >
+            {pageLabel(p.path)}
+          </span>
+          <div
+            aria-hidden
+            className="hidden h-2 flex-1 overflow-hidden rounded-full bg-secondary sm:block"
+          >
+            <div
+              className="h-full rounded-full bg-foreground/25"
               style={{ width: `${(p.views / max) * 100}%` }}
             />
-            {/* title: mantém o caminho real acessível ao passar o mouse. */}
-            <span
-              title={p.path}
-              className="relative block truncate px-2 py-1.5 text-xs text-foreground"
-            >
-              {pageLabel(p.path)}
-            </span>
           </div>
-          <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums">
+          <span className="w-10 shrink-0 text-right text-sm font-semibold tabular-nums">
             {p.views}
           </span>
         </li>
