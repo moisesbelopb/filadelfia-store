@@ -61,24 +61,21 @@ export function pixComprovanteMessage(order: OrderWithItems): string {
     ? `: ${formatScheduled(order.scheduled_date, order.scheduled_window)}`
     : "";
   const entrega =
-    order.fulfillment_type === "retirada"
-      ? `⛪ Retirada na igreja${quando}`
-      : `🛵 Entrega${quando}`;
+    order.fulfillment_type === "retirada" ? `Retirada na igreja${quando}` : `Entrega${quando}`;
 
   return [
-    "Olá, Casa de Filadélfia! 🙏",
+    "Olá, Casa de Filadélfia!",
     "",
-    "Acabei de finalizar meu pedido pelo site e paguei via Pix.",
-    "Vou enviar o comprovante a seguir. 📎",
+    "Acabei de finalizar meu pedido pelo site e paguei via Pix. Vou enviar o comprovante a seguir.",
     "",
-    `🧾 Pedido: #${order.order_number}`,
-    `👤 Cliente: ${order.customer_name}`,
-    "🛍️ Itens:",
+    `Pedido: #${order.order_number}`,
+    `Cliente: ${order.customer_name}`,
+    "Itens:",
     itens,
-    `💰 Total: ${formatBRL(order.total)}`,
+    `Total: ${formatBRL(order.total)}`,
     entrega,
     "",
-    "Estou ciente de que o pedido só será confirmado após a conferência do comprovante do Pix. Obrigado! ✨",
+    "Estou ciente de que o pedido só será confirmado após a conferência do comprovante do Pix. Obrigado!",
   ].join("\n");
 }
 
