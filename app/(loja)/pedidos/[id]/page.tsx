@@ -2,18 +2,21 @@ import { CancelOrderButton } from "@/components/loja/cancel-order-button";
 import { OrderRealtime } from "@/components/loja/order-realtime";
 import { OrderStatusBadge } from "@/components/loja/order-status-badge";
 import { OrderTimeline } from "@/components/loja/order-timeline";
+import { PixPayment } from "@/components/loja/pix-payment";
 import { WhatsappShare } from "@/components/loja/whatsapp-share";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SITE_URL } from "@/lib/env";
 import { formatScheduled } from "@/lib/orders/delivery";
 import { PAYMENT_LABEL } from "@/lib/orders/fsm";
-import { getMyOrder } from "@/lib/queries/orders";
+import { pixComprovanteMessage, resolveStorePix, whatsappLink } from "@/lib/orders/template";
+import { getMyOrder, getStorePix } from "@/lib/queries/orders";
 import { formatBRL, formatDateTime } from "@/lib/utils";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 
 export const metadata: Metadata = { title: "Detalhe do pedido" };
 
@@ -27,6 +30,27 @@ export default async function PedidoDetailPage({
   if (!order) notFound();
 
   const addr = order.address;
+
+  // Pix pendente: mostra chave + botão de comprovante (paga primeiro, a equipe
+  // confere e só então aceita). Nos demais pagamentos/estados, nada muda.
+  const showPix =
+    order.payment_method === "pix" &&
+    order.payment_status !== "pago" &&
+    order.status !== "cancelado" &&
+    order.status !== "recusado";
+  let pixBlock: ReactNode = null;
+  if (showPix) {
+    const pix = resolveStorePix(await getStorePix());
+    const waHref = whatsappLink(pix.whatsapp_loja ?? "", pixComprovanteMessage(order));
+    pixBlock = (
+      <PixPayment
+        chave={pix.chave}
+        recebedor={pix.recebedor}
+        valor={formatBRL(order.total)}
+        waHref={waHref}
+      />
+    );
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-8">
@@ -46,6 +70,8 @@ export default async function PedidoDetailPage({
         </div>
         <OrderStatusBadge status={order.status} fulfillment={order.fulfillment_type} />
       </div>
+
+      {pixBlock}
 
       <Card>
         <CardHeader>

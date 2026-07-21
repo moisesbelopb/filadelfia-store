@@ -2,8 +2,8 @@ import "server-only";
 
 import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
-import { createClient } from "@/lib/supabase/server";
-import type { Order, OrderItem, OrderWithItems } from "@/types/db";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import type { Order, OrderItem, OrderWithItems, PixSettings } from "@/types/db";
 
 /** Item do pedido com a foto do produto (para a miniatura do card). */
 export interface MyOrderItem extends OrderItem {
@@ -71,6 +71,23 @@ export async function getMyOrders(): Promise<MyOrder[]> {
       image: i.product_id ? (imageByProduct.get(i.product_id) ?? null) : null,
     })),
   }));
+}
+
+/**
+ * Config Pix da loja para exibir ao cliente na tela do pedido (chave, recebedor,
+ * banco e WhatsApp — dados públicos de pagamento). Usa service role porque a RLS
+ * de `settings` não libera a chave Pix para o cliente. Cai em null em modo demo
+ * ou sem service role; nesse caso a UI aplica os padrões da loja.
+ */
+export async function getStorePix(): Promise<PixSettings | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from("settings").select("value").eq("key", "pix").maybeSingle();
+    return (data?.value as PixSettings | undefined) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Um pedido do PRÓPRIO usuário, com itens e histórico (mesma regra do getMyOrders). */

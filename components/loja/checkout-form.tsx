@@ -380,10 +380,13 @@ export function CheckoutForm({
           <Field label="Observação (opcional)" error={errors.notes?.message}>
             <Textarea {...register("notes")} placeholder="Ponto de referência, troco, etc." />
           </Field>
-          <p className="rounded-md bg-secondary/60 p-3 text-xs text-muted-foreground">
-            Se escolher <strong>Pix</strong>, a chave é enviada por e-mail/WhatsApp somente
-            <strong> após a equipe aceitar</strong> seu pedido.
-          </p>
+          {paymentMethod === "pix" && (
+            <p className="rounded-md bg-secondary/60 p-3 text-xs text-muted-foreground">
+              Ao finalizar, você verá a <strong>chave Pix</strong> e o botão para{" "}
+              <strong>enviar o comprovante no WhatsApp</strong>. O pedido é confirmado após a equipe
+              conferir o pagamento.
+            </p>
+          )}
         </CardContent>
       </Card>
 

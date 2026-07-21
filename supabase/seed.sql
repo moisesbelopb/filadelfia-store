@@ -108,7 +108,7 @@ on conflict (key) do nothing;
 
 -- Configurações
 insert into public.settings (key, value, is_public) values
-  ('pix',   '{"chave":"","recebedor":"Casa de Filadélfia","banco":"","observacao":""}'::jsonb, false),
+  ('pix',   '{"chave":"pixdaconquista@gmail.com","recebedor":"Casa de Filadélfia","banco":"","observacao":"","whatsapp_loja":"(83) 2178-8064"}'::jsonb, false),
   ('visual','{"primaryColor":"#161616","logoUrl":"/logo.png","bannerUrl":""}'::jsonb, true),
   ('store', '{"name":"Casa de Filadélfia","whatsapp":""}'::jsonb, true),
   ('pwa',   '{"name":"Casa de Filadélfia","shortName":"Filadélfia"}'::jsonb, true)
