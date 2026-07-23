@@ -2,7 +2,7 @@
 
 import { resolvePostLoginPath } from "@/lib/auth";
 import { SITE_URL, isSupabaseConfigured } from "@/lib/env";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { isValidPhone, maskPhone, safeRedirectPath, titleCaseName } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -21,11 +21,7 @@ const whatsappField = z
   .transform(maskPhone);
 
 /** Nome próprio: salva com a primeira letra de cada palavra em maiúscula. */
-const nameField = z
-  .string()
-  .trim()
-  .min(2, "Informe seu nome completo")
-  .transform(titleCaseName);
+const nameField = z.string().trim().min(2, "Informe seu nome completo").transform(titleCaseName);
 
 /** E-mail: normalizado em minúsculas e validado. */
 const emailField = z.string().trim().toLowerCase().email("E-mail inválido");
@@ -73,18 +69,26 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  // Cria a conta JÁ confirmada (service role). Sem isso, a confirmação de e-mail
+  // do Supabase deixa a conta pendente e BLOQUEIA o login — e o e-mail não é o
+  // canal de contato da loja (usamos WhatsApp). O perfil (nome/WhatsApp) e o role
+  // 'cliente' saem do trigger on_auth_user_created a partir do user_metadata.
+  let admin: ReturnType<typeof createAdminClient>;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { error: "Não foi possível criar a conta. Tente novamente." };
+  }
+
+  const { error: createErr } = await admin.auth.admin.createUser({
     email: parsed.data.email,
     password: parsed.data.password,
-    options: {
-      data: { full_name: parsed.data.fullName, whatsapp: parsed.data.whatsapp },
-      emailRedirectTo: `${SITE_URL}/api/auth/callback`,
-    },
+    email_confirm: true,
+    user_metadata: { full_name: parsed.data.fullName, whatsapp: parsed.data.whatsapp },
   });
-  if (error) {
+  if (createErr) {
     // Já cadastrado é útil de sinalizar; demais erros ficam genéricos (não vazar detalhes).
-    const already = /registered|already|exist/i.test(error.message);
+    const already = /registered|already|exist/i.test(createErr.message);
     return {
       error: already
         ? "Este e-mail já está cadastrado. Tente entrar."
@@ -92,7 +96,16 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
     };
   }
 
+  // Loga em seguida para já entrar na loja (estabelece a sessão via cookies).
+  const supabase = await createClient();
+  const { error: signInErr } = await supabase.auth.signInWithPassword({
+    email: parsed.data.email,
+    password: parsed.data.password,
+  });
+
   const next = safeRedirectPath(formData.get("redirect") as string, "/?bemvindo=1");
+  // Conta criada; se o auto-login falhar, manda para o /login já com o destino.
+  if (signInErr) redirect(`/login?redirect=${encodeURIComponent(next)}`);
   redirect(next);
 }
 
