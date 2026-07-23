@@ -53,3 +53,7 @@ CREDENCIAIS.txt
 # backups e imagem órfã pesada dentro de public/ (não vão pra deploy)
 /public/products/.backup-original/
 /public/products/modelo_homem_preto_caminhando.png
+
+# vídeos de depuração/prints deixados na raiz (não vão pro repo)
+*.mp4
+*.mov
