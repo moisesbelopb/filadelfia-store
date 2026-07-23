@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { notificationEventLabel } from "@/lib/email/defaults";
 import { formatScheduled } from "@/lib/orders/delivery";
-import { PAYMENT_LABEL } from "@/lib/orders/fsm";
 import { pixMessage, whatsappLink } from "@/lib/orders/template";
 import { getAdminOrder, getMessageTemplate, getSetting } from "@/lib/queries/admin";
 import { formatBRL, formatDateTime } from "@/lib/utils";
@@ -49,6 +48,12 @@ export default async function AdminOrderDetail({
   const pixKeyMissing = isPix && !pix?.chave;
   const isPickup = order.fulfillment_type === "retirada";
   const cardMachine = order.payment_method === "cartao" && !isPickup;
+  const paymentName =
+    order.payment_method === "pix"
+      ? "Pix"
+      : order.payment_method === "dinheiro"
+        ? "Dinheiro"
+        : "Cartão (maquininha)";
 
   return (
     <div className="flex flex-col gap-4">
@@ -113,9 +118,9 @@ export default async function AdminOrderDetail({
             {order.notes && <p className="mt-1 italic">“{order.notes}”</p>}
             <Separator className="my-2" />
             <div className="flex flex-wrap items-center gap-2">
-              <span>{PAYMENT_LABEL[order.payment_method]}</span>
+              <span className="text-foreground">{paymentName}</span>
               <Badge variant={order.payment_status === "pago" ? "success" : "warning"}>
-                {order.payment_status === "pago" ? "Pago" : "Pendente"}
+                {order.payment_status === "pago" ? "Pedido Pago" : "Pagamento Pendente"}
               </Badge>
               {cardMachine && <Badge variant="warning">Levar maquineta</Badge>}
             </div>
