@@ -76,12 +76,18 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   redirect(target);
 }
 
-const signupSchema = z.object({
-  fullName: nameField,
-  whatsapp: whatsappField,
-  email: emailField,
-  password: z.string().min(6, "A senha precisa de ao menos 6 caracteres"),
-});
+const signupSchema = z
+  .object({
+    fullName: nameField,
+    whatsapp: whatsappField,
+    email: emailField,
+    password: z.string().min(6, "A senha precisa de ao menos 6 caracteres"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "As senhas não conferem.",
+    path: ["confirmPassword"],
+  });
 
 export async function signupAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
   if (!isSupabaseConfigured) return { error: NOT_CONFIGURED };
@@ -91,6 +97,7 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
     whatsapp: formData.get("whatsapp"),
     email: formData.get("email"),
     password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };

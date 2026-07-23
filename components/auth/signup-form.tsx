@@ -74,6 +74,16 @@ export function SignupForm({ redirect, authError }: { redirect?: string; authErr
             required
           />
         </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="confirmPassword">Confirmar senha</Label>
+          <PasswordInput
+            id="confirmPassword"
+            name="confirmPassword"
+            autoComplete="new-password"
+            minLength={6}
+            required
+          />
+        </div>
 
         {state?.error && <Alert variant="error">{state.error}</Alert>}
 
