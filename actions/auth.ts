@@ -31,6 +31,27 @@ const loginSchema = z.object({
   password: z.string().min(6, "Senha muito curta"),
 });
 
+/**
+ * Conta criada só com Google NÃO tem senha — o login por e-mail/senha falha com
+ * "credenciais inválidas". Detecta esse caso (via service role, só no caminho de
+ * ERRO, que é raro) para orientar o cliente a usar o botão "Entrar com Google",
+ * em vez do enganoso "e-mail ou senha incorretos".
+ */
+async function isGoogleOnlyAccount(email: string): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const user = data?.users?.find((u) => (u.email ?? "").toLowerCase() === email);
+    if (!user) return false;
+    const providers =
+      (user.app_metadata?.providers as string[] | undefined) ??
+      (user.app_metadata?.provider ? [user.app_metadata.provider as string] : []);
+    return providers.includes("google") && !providers.includes("email");
+  } catch {
+    return false;
+  }
+}
+
 export async function loginAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
   if (!isSupabaseConfigured) return { error: NOT_CONFIGURED };
 
@@ -42,7 +63,13 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) return { error: "E-mail ou senha incorretos." };
+  if (error) {
+    return {
+      error: (await isGoogleOnlyAccount(parsed.data.email))
+        ? "Esta conta foi criada com o Google. Toque em “Entrar com Google” acima."
+        : "E-mail ou senha incorretos.",
+    };
+  }
 
   const requested = safeRedirectPath(formData.get("redirect") as string);
   const target = data.user ? await resolvePostLoginPath(data.user.id, requested) : requested;
