@@ -336,6 +336,48 @@ export async function setHoverImage(imageId: string, productId: string): Promise
   return ok(undefined);
 }
 
+/**
+ * Reordena as fotos do produto (arrastar-e-soltar no admin). Recebe os ids na
+ * nova ordem e grava `position` sequencial. A imagem principal (`is_primary`)
+ * continua sendo definida à parte, pela estrela.
+ */
+export async function reorderProductImages(
+  productId: string,
+  orderedIds: string[],
+): Promise<ActionResult> {
+  const g = await guard();
+  if (g) return g;
+  const supabase = await createClient();
+
+  // Confere que a lista corresponde exatamente às fotos do produto (evita gravar
+  // ids de outro produto ou uma lista incompleta).
+  const { data: imgs, error: readErr } = await supabase
+    .from("product_images")
+    .select("id")
+    .eq("product_id", productId);
+  if (readErr) return fail(readErr.message);
+  const valid = new Set((imgs ?? []).map((i) => i.id as string));
+  if (orderedIds.length !== valid.size || !orderedIds.every((id) => valid.has(id))) {
+    return fail("Lista de imagens inválida.");
+  }
+
+  // Grava position sequencial na ordem recebida (não há índice único em position).
+  let pos = 0;
+  for (const id of orderedIds) {
+    const { error } = await supabase.from("product_images").update({ position: pos }).eq("id", id);
+    if (error) return fail(error.message);
+    pos += 1;
+  }
+
+  const user = await getCurrentUser();
+  await logAudit(user?.id ?? null, "product.image.reorder", "product", productId);
+
+  revalidatePath(`/admin/produtos/${productId}`);
+  revalidatePath("/");
+  revalidateTag(CATALOG_TAG);
+  return ok(undefined);
+}
+
 async function uniqueSlug(
   supabase: Awaited<ReturnType<typeof createClient>>,
   base: string,
