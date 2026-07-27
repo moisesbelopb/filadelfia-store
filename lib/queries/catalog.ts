@@ -6,12 +6,15 @@ import { createPublicClient } from "@/lib/supabase/public";
 import type { Category, ProductWithImages } from "@/types/db";
 import { unstable_cache } from "next/cache";
 
-const PRODUCT_SELECT =
-  "*, product_images(*), product_variants(*), category:categories(id,name,slug)";
+// Colunas públicas do produto. NÃO usar "*": isso exporia `cost_price` (custo,
+// dado interno) ao cliente. Listamos explicitamente, sem o custo.
+const PRODUCT_COLUMNS =
+  "id, category_id, name, slug, description_short, description_long, price, stock, is_active, is_featured, color_name, color_hex, color_group, visual, created_at, updated_at";
+
+const PRODUCT_SELECT = `${PRODUCT_COLUMNS}, product_images(*), product_variants(*), category:categories(id,name,slug)`;
 
 /** Filtra pela categoria em UMA query (join), em vez de buscar o id antes. */
-const PRODUCT_SELECT_BY_CATEGORY =
-  "*, product_images(*), product_variants(*), category:categories!inner(id,name,slug)";
+const PRODUCT_SELECT_BY_CATEGORY = `${PRODUCT_COLUMNS}, product_images(*), product_variants(*), category:categories!inner(id,name,slug)`;
 
 /**
  * Tag de invalidação do catálogo. As actions do admin (produto, variante,

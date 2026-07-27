@@ -16,6 +16,11 @@ export const productSchema = z.object({
   descriptionShort: z.string().max(160).optional(),
   descriptionLong: z.string().optional(),
   price: z.coerce.number().nonnegative("Preço inválido"),
+  // Preço de custo: opcional (campo vazio => null). Base para a margem no admin.
+  costPrice: z.preprocess(
+    (v) => (v === "" || v === undefined || v === null ? null : v),
+    z.coerce.number().nonnegative("Custo inválido").nullable(),
+  ),
   // Estoque total é derivado das variantes (tamanhos); mantido opcional p/ compat.
   stock: z.coerce.number().int().nonnegative("Estoque inválido").optional().default(0),
   colorName: z.string().max(40).optional(),

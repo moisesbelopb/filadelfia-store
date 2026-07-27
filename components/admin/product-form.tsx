@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/use-toast";
+import { formatBRL } from "@/lib/utils";
 import { type ProductInput, productSchema } from "@/lib/validators/admin";
 import type { Category, ProductWithImages } from "@/types/db";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,6 +43,7 @@ export function ProductForm({
       descriptionShort: product?.description_short ?? "",
       descriptionLong: product?.description_long ?? "",
       price: product?.price ?? 0,
+      costPrice: product?.cost_price ?? null,
       colorName: product?.color_name ?? "",
       colorHex: product?.color_hex ?? "",
       colorGroup: product?.color_group ?? "",
@@ -51,6 +53,14 @@ export function ProductForm({
   });
 
   const colorHex = watch("colorHex") ?? "";
+
+  // Margem/lucro ao vivo (preço de venda − custo), quando ambos forem válidos.
+  const priceNum = Number(watch("price"));
+  const costNum = Number(watch("costPrice"));
+  const margin =
+    Number.isFinite(priceNum) && Number.isFinite(costNum) && priceNum > 0 && costNum > 0
+      ? { lucro: priceNum - costNum, pct: ((priceNum - costNum) / priceNum) * 100 }
+      : null;
 
   async function onSubmit(values: ProductInput) {
     if (product) {
@@ -98,6 +108,24 @@ export function ProductForm({
 
           <Field label="Preço (R$)" error={errors.price?.message}>
             <Input type="number" step="0.01" min="0" {...register("price")} />
+          </Field>
+
+          <Field label="Preço de custo (R$)" error={errors.costPrice?.message}>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="opcional"
+              {...register("costPrice")}
+            />
+            {margin ? (
+              <p className="text-xs text-muted-foreground">
+                Margem: <strong className="text-foreground">{formatBRL(margin.lucro)}</strong> (
+                {margin.pct.toFixed(0)}%)
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Só o admin vê — base do seu lucro.</p>
+            )}
           </Field>
 
           {/* Cor — alimenta o seletor de cores da loja. */}

@@ -57,6 +57,8 @@ export interface Product {
   description_short: string | null;
   description_long: string | null;
   price: number;
+  /** Preço de custo (compra) — base para margem. Só no admin; nunca exposto na loja. */
+  cost_price?: number | null;
   /** Estoque total (soma das variantes). Mantido para compat/relatórios. */
   stock: number;
   is_active: boolean;
