@@ -483,7 +483,10 @@ type BreakdownItem = {
  * do produto atual (o item não guarda cor); produto excluído/sem cor cai em
  * "Sem cor".
  */
-export async function getOrdersBreakdown(range?: DashboardRange): Promise<OrdersBreakdown> {
+export async function getOrdersBreakdown(
+  range?: DashboardRange,
+  categoryId?: string,
+): Promise<OrdersBreakdown> {
   const empty: OrdersBreakdown = {
     totalUnits: 0,
     totalOrders: 0,
@@ -513,20 +516,29 @@ export async function getOrdersBreakdown(range?: DashboardRange): Promise<Orders
       .in("order_id", validIds.slice(i, i + CHUNK));
     items.push(...((data as BreakdownItem[] | null) ?? []));
   }
-  if (items.length === 0) return { ...empty, totalOrders: validIds.length };
+  if (items.length === 0) return empty;
 
-  // 3) Cor atual de cada produto (o item não guarda a cor).
+  // 3) Cor e categoria atuais de cada produto (o item não guarda cor/categoria).
   const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))] as string[];
   const colorById = new Map<string, string>();
+  const categoryById = new Map<string, string>();
   if (productIds.length) {
     const { data: prods } = await supabase
       .from("products")
-      .select("id, color_name")
+      .select("id, color_name, category_id")
       .in("id", productIds);
-    for (const p of (prods as { id: string; color_name: string | null }[] | null) ?? []) {
+    for (const p of (prods as
+      | { id: string; color_name: string | null; category_id: string | null }[]
+      | null) ?? []) {
       if (p.color_name?.trim()) colorById.set(p.id, p.color_name.trim());
+      if (p.category_id) categoryById.set(p.id, p.category_id);
     }
   }
+
+  // Recorte por categoria (opcional): mantém só itens do produto naquela categoria.
+  const scoped = categoryId
+    ? items.filter((it) => it.product_id && categoryById.get(it.product_id) === categoryId)
+    : items;
 
   // 4) Agrega: unidades (soma quantity) e pedidos distintos por chave.
   type Agg = { units: number; orders: Set<string> };
@@ -539,10 +551,12 @@ export async function getOrdersBreakdown(range?: DashboardRange): Promise<Orders
   const byProduct = new Map<string, Agg>();
   const bySize = new Map<string, Agg>();
   const byColor = new Map<string, Agg>();
+  const allOrders = new Set<string>();
   let totalUnits = 0;
-  for (const it of items) {
+  for (const it of scoped) {
     const qty = Number(it.quantity) || 0;
     totalUnits += qty;
+    allOrders.add(it.order_id);
     bump(byProduct, it.product_name?.trim() || "—", qty, it.order_id);
     bump(bySize, it.variant_size?.trim() || "Sem tamanho", qty, it.order_id);
     const color = (it.product_id && colorById.get(it.product_id)) || "Sem cor";
@@ -556,7 +570,7 @@ export async function getOrdersBreakdown(range?: DashboardRange): Promise<Orders
 
   return {
     totalUnits,
-    totalOrders: validIds.length,
+    totalOrders: allOrders.size,
     byProduct: toRows(byProduct),
     bySize: toRows(bySize),
     byColor: toRows(byColor),
