@@ -7,7 +7,7 @@ import { STATUS_LABEL } from "@/lib/orders/fsm";
 import { listAdminOrders } from "@/lib/queries/admin";
 import { cardHighlight, cn, formatBRL, formatDateTime } from "@/lib/utils";
 import type { OrderStatus } from "@/types/db";
-import { ClipboardList, Search } from "lucide-react";
+import { BarChart3, ClipboardList, Search } from "lucide-react";
 import Link from "next/link";
 
 // Depende do período/searchParams e da data atual — sempre dinâmico.
@@ -65,11 +65,18 @@ export default async function AdminOrdersPage({
             {range.label} · {orders.length} {orders.length === 1 ? "pedido" : "pedidos"}
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/admin/pedidos/separacao">
-            <ClipboardList className="size-4" /> Lista de separação
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/admin/pedidos/relatorio">
+              <BarChart3 className="size-4" /> Relatório
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/admin/pedidos/separacao">
+              <ClipboardList className="size-4" /> Lista de separação
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <PeriodFilter

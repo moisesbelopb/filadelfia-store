@@ -452,6 +452,117 @@ export async function getDeliveryReport(range?: DashboardRange): Promise<Deliver
   return { rows, totals };
 }
 
+/** Uma linha do relatório de itens vendidos (por produto / tamanho / cor). */
+export interface BreakdownRow {
+  label: string;
+  /** Unidades vendidas (soma de order_items.quantity). */
+  units: number;
+  /** Nº de pedidos distintos que incluíram este item. */
+  orders: number;
+}
+
+export interface OrdersBreakdown {
+  totalUnits: number;
+  totalOrders: number;
+  byProduct: BreakdownRow[];
+  bySize: BreakdownRow[];
+  byColor: BreakdownRow[];
+}
+
+type BreakdownItem = {
+  order_id: string;
+  product_id: string | null;
+  product_name: string;
+  variant_size: string | null;
+  quantity: number;
+};
+
+/**
+ * Relatório de demanda: quantidades vendidas por PRODUTO, TAMANHO e COR no
+ * período. Considera pedidos NÃO cancelados/recusados (demanda real). A cor vem
+ * do produto atual (o item não guarda cor); produto excluído/sem cor cai em
+ * "Sem cor".
+ */
+export async function getOrdersBreakdown(range?: DashboardRange): Promise<OrdersBreakdown> {
+  const empty: OrdersBreakdown = {
+    totalUnits: 0,
+    totalOrders: 0,
+    byProduct: [],
+    bySize: [],
+    byColor: [],
+  };
+  if (!isSupabaseConfigured) return empty;
+  const supabase = await createClient();
+
+  // 1) Pedidos do período; descarta cancelados/recusados (não são demanda real).
+  let oq = supabase.from("orders").select("id, status, created_at");
+  if (range) oq = oq.gte("created_at", range.start).lte("created_at", range.end);
+  const { data: ordersData } = await oq;
+  const validIds = ((ordersData as { id: string; status: OrderStatus }[] | null) ?? [])
+    .filter((o) => o.status !== "cancelado" && o.status !== "recusado")
+    .map((o) => o.id);
+  if (validIds.length === 0) return empty;
+
+  // 2) Itens desses pedidos (em lotes, p/ não estourar o filtro `in`).
+  const items: BreakdownItem[] = [];
+  const CHUNK = 300;
+  for (let i = 0; i < validIds.length; i += CHUNK) {
+    const { data } = await supabase
+      .from("order_items")
+      .select("order_id, product_id, product_name, variant_size, quantity")
+      .in("order_id", validIds.slice(i, i + CHUNK));
+    items.push(...((data as BreakdownItem[] | null) ?? []));
+  }
+  if (items.length === 0) return { ...empty, totalOrders: validIds.length };
+
+  // 3) Cor atual de cada produto (o item não guarda a cor).
+  const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))] as string[];
+  const colorById = new Map<string, string>();
+  if (productIds.length) {
+    const { data: prods } = await supabase
+      .from("products")
+      .select("id, color_name")
+      .in("id", productIds);
+    for (const p of (prods as { id: string; color_name: string | null }[] | null) ?? []) {
+      if (p.color_name?.trim()) colorById.set(p.id, p.color_name.trim());
+    }
+  }
+
+  // 4) Agrega: unidades (soma quantity) e pedidos distintos por chave.
+  type Agg = { units: number; orders: Set<string> };
+  const bump = (m: Map<string, Agg>, key: string, qty: number, orderId: string) => {
+    const a = m.get(key) ?? { units: 0, orders: new Set<string>() };
+    a.units += qty;
+    a.orders.add(orderId);
+    m.set(key, a);
+  };
+  const byProduct = new Map<string, Agg>();
+  const bySize = new Map<string, Agg>();
+  const byColor = new Map<string, Agg>();
+  let totalUnits = 0;
+  for (const it of items) {
+    const qty = Number(it.quantity) || 0;
+    totalUnits += qty;
+    bump(byProduct, it.product_name?.trim() || "—", qty, it.order_id);
+    bump(bySize, it.variant_size?.trim() || "Sem tamanho", qty, it.order_id);
+    const color = (it.product_id && colorById.get(it.product_id)) || "Sem cor";
+    bump(byColor, color, qty, it.order_id);
+  }
+
+  const toRows = (m: Map<string, Agg>): BreakdownRow[] =>
+    [...m.entries()]
+      .map(([label, a]) => ({ label, units: a.units, orders: a.orders.size }))
+      .sort((x, y) => y.units - x.units || x.label.localeCompare(y.label));
+
+  return {
+    totalUnits,
+    totalOrders: validIds.length,
+    byProduct: toRows(byProduct),
+    bySize: toRows(bySize),
+    byColor: toRows(byColor),
+  };
+}
+
 export async function getSetting<T = Record<string, unknown>>(key: string): Promise<T | null> {
   if (!isSupabaseConfigured) return null;
   const supabase = await createClient();
