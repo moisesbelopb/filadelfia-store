@@ -29,6 +29,8 @@ export default async function RelatorioPedidosPage({
     { name: "Produto", rows: report.byProduct },
     { name: "Tamanho", rows: report.bySize },
     { name: "Cor", rows: report.byColor },
+    { name: "Pagamento", rows: report.byPayment },
+    { name: "Entrega/Retirada", rows: report.byFulfillment },
   ];
   const csvName = `relatorio-itens-${range.from}_${range.to}.csv`;
 
@@ -81,6 +83,8 @@ export default async function RelatorioPedidosPage({
       <div className="grid gap-4 lg:grid-cols-2">
         <BreakdownCard title="Por tamanho" rows={report.bySize} />
         <BreakdownCard title="Por cor" rows={report.byColor} />
+        <BreakdownCard title="Por forma de pagamento" rows={report.byPayment} />
+        <BreakdownCard title="Por entrega/retirada" rows={report.byFulfillment} />
       </div>
     </div>
   );

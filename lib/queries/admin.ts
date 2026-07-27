@@ -467,6 +467,8 @@ export interface OrdersBreakdown {
   byProduct: BreakdownRow[];
   bySize: BreakdownRow[];
   byColor: BreakdownRow[];
+  byPayment: BreakdownRow[];
+  byFulfillment: BreakdownRow[];
 }
 
 type BreakdownItem = {
@@ -493,18 +495,44 @@ export async function getOrdersBreakdown(
     byProduct: [],
     bySize: [],
     byColor: [],
+    byPayment: [],
+    byFulfillment: [],
   };
   if (!isSupabaseConfigured) return empty;
   const supabase = await createClient();
 
   // 1) Pedidos do período; descarta cancelados/recusados (não são demanda real).
-  let oq = supabase.from("orders").select("id, status, created_at");
+  let oq = supabase
+    .from("orders")
+    .select("id, status, payment_method, fulfillment_type, created_at");
   if (range) oq = oq.gte("created_at", range.start).lte("created_at", range.end);
   const { data: ordersData } = await oq;
-  const validIds = ((ordersData as { id: string; status: OrderStatus }[] | null) ?? [])
-    .filter((o) => o.status !== "cancelado" && o.status !== "recusado")
-    .map((o) => o.id);
+  const validOrders = (
+    (ordersData as
+      | {
+          id: string;
+          status: OrderStatus;
+          payment_method: PaymentMethod;
+          fulfillment_type: string;
+        }[]
+      | null) ?? []
+  ).filter((o) => o.status !== "cancelado" && o.status !== "recusado");
+  const validIds = validOrders.map((o) => o.id);
   if (validIds.length === 0) return empty;
+
+  // Metadados do pedido (pagamento / entrega) por id — atributos do PEDIDO, não do item.
+  const PAYMENT_SHORT: Record<string, string> = {
+    pix: "Pix",
+    dinheiro: "Dinheiro",
+    cartao: "Cartão",
+  };
+  const orderMeta = new Map<string, { payment: string; fulfillment: string }>();
+  for (const o of validOrders) {
+    orderMeta.set(o.id, {
+      payment: PAYMENT_SHORT[o.payment_method] ?? o.payment_method,
+      fulfillment: o.fulfillment_type === "retirada" ? "Retirada na igreja" : "Entrega",
+    });
+  }
 
   // 2) Itens desses pedidos (em lotes, p/ não estourar o filtro `in`).
   const items: BreakdownItem[] = [];
@@ -551,6 +579,8 @@ export async function getOrdersBreakdown(
   const byProduct = new Map<string, Agg>();
   const bySize = new Map<string, Agg>();
   const byColor = new Map<string, Agg>();
+  const byPayment = new Map<string, Agg>();
+  const byFulfillment = new Map<string, Agg>();
   const allOrders = new Set<string>();
   let totalUnits = 0;
   for (const it of scoped) {
@@ -561,6 +591,11 @@ export async function getOrdersBreakdown(
     bump(bySize, it.variant_size?.trim() || "Sem tamanho", qty, it.order_id);
     const color = (it.product_id && colorById.get(it.product_id)) || "Sem cor";
     bump(byColor, color, qty, it.order_id);
+    const meta = orderMeta.get(it.order_id);
+    if (meta) {
+      bump(byPayment, meta.payment, qty, it.order_id);
+      bump(byFulfillment, meta.fulfillment, qty, it.order_id);
+    }
   }
 
   const toRows = (m: Map<string, Agg>): BreakdownRow[] =>
@@ -574,6 +609,8 @@ export async function getOrdersBreakdown(
     byProduct: toRows(byProduct),
     bySize: toRows(bySize),
     byColor: toRows(byColor),
+    byPayment: toRows(byPayment),
+    byFulfillment: toRows(byFulfillment),
   };
 }
 
