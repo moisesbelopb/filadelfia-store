@@ -4,7 +4,12 @@ import { ReportCategoryFilter } from "@/components/admin/report-category-filter"
 import { ReportExportButton } from "@/components/admin/report-export-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolvePeriod } from "@/lib/dashboard-period";
-import { type BreakdownRow, getOrdersBreakdown, listCategories } from "@/lib/queries/admin";
+import {
+  type BreakdownRow,
+  type ColorSizeGroup,
+  getOrdersBreakdown,
+  listCategories,
+} from "@/lib/queries/admin";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -25,10 +30,14 @@ export default async function RelatorioPedidosPage({
   const catName = cat ? categories.find((c) => c.id === cat)?.name : undefined;
   const scope = `${range.label}${catName ? ` · ${catName}` : ""}`;
 
+  const sizeColorRows = report.sizeByColor.flatMap((g) =>
+    g.sizes.map((s) => ({ label: `${g.color} · ${s.label}`, units: s.units, orders: s.orders })),
+  );
   const sections = [
     { name: "Produto", rows: report.byProduct },
     { name: "Tamanho", rows: report.bySize },
     { name: "Cor", rows: report.byColor },
+    { name: "Tamanho por cor", rows: sizeColorRows },
     { name: "Pagamento", rows: report.byPayment },
     { name: "Entrega/Retirada", rows: report.byFulfillment },
   ];
@@ -79,6 +88,8 @@ export default async function RelatorioPedidosPage({
         <SummaryTile label="Unidades vendidas" value={report.totalUnits} />
       </div>
 
+      <SizeByColorCard groups={report.sizeByColor} />
+
       <BreakdownCard title="Por produto" rows={report.byProduct} />
       <div className="grid gap-4 lg:grid-cols-2">
         <BreakdownCard title="Por tamanho" rows={report.bySize} />
@@ -96,6 +107,47 @@ function SummaryTile({ label, value }: { label: string; value: number }) {
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-2xl font-bold tabular-nums">{value}</p>
     </div>
+  );
+}
+
+/** Cruzamento cor × tamanho: um bloco por cor, com os tamanhos e as quantidades. */
+function SizeByColorCard({ groups }: { groups: ColorSizeGroup[] }) {
+  return (
+    <Card className="print:break-inside-avoid print:border-black/20 print:shadow-none">
+      <CardHeader className="flex-row items-center justify-between gap-2">
+        <CardTitle className="text-base">Tamanhos por cor</CardTitle>
+        <span className="text-xs text-muted-foreground">
+          {groups.length} {groups.length === 1 ? "cor" : "cores"}
+        </span>
+      </CardHeader>
+      <CardContent>
+        {groups.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">Sem dados no período.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {groups.map((g) => (
+              <div key={g.color} className="rounded-lg border border-border/70 p-3">
+                <div className="flex items-baseline justify-between gap-2 border-b border-border/60 pb-1.5">
+                  <span className="font-semibold">{g.color}</span>
+                  <span className="text-xs text-muted-foreground">{g.total} un</span>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-x-5 gap-y-1">
+                  {g.sizes.map((s) => (
+                    <div
+                      key={s.label}
+                      className="flex items-center justify-between gap-2 text-sm tabular-nums"
+                    >
+                      <span className="text-muted-foreground">{s.label}</span>
+                      <span className="font-semibold">{s.units}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

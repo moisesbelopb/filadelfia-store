@@ -469,6 +469,25 @@ export interface OrdersBreakdown {
   byColor: BreakdownRow[];
   byPayment: BreakdownRow[];
   byFulfillment: BreakdownRow[];
+  /** Cruzamento cor × tamanho: os tamanhos vendidos DENTRO de cada cor. */
+  sizeByColor: ColorSizeGroup[];
+}
+
+/** Distribuição de tamanhos de uma cor (ex.: Preta → P:14, M:32, G:19). */
+export interface ColorSizeGroup {
+  color: string;
+  total: number;
+  sizes: BreakdownRow[];
+}
+
+/** Ordem natural de tamanhos de roupa; numéricos (infantil) vêm depois, em ordem. */
+const SIZE_ORDER = ["PP", "P", "M", "G", "GG", "XG", "XGG", "EXG", "EXGG"];
+function sizeRank(size: string): number {
+  const i = SIZE_ORDER.indexOf(size.trim().toUpperCase());
+  if (i >= 0) return i;
+  const n = Number(size);
+  if (Number.isFinite(n)) return 100 + n;
+  return 999;
 }
 
 type BreakdownItem = {
@@ -497,6 +516,7 @@ export async function getOrdersBreakdown(
     byColor: [],
     byPayment: [],
     byFulfillment: [],
+    sizeByColor: [],
   };
   if (!isSupabaseConfigured) return empty;
   const supabase = await createClient();
@@ -581,16 +601,22 @@ export async function getOrdersBreakdown(
   const byColor = new Map<string, Agg>();
   const byPayment = new Map<string, Agg>();
   const byFulfillment = new Map<string, Agg>();
+  // Cruzamento cor × tamanho: por cor, um mapa de tamanho → agregado.
+  const colorSize = new Map<string, Map<string, Agg>>();
   const allOrders = new Set<string>();
   let totalUnits = 0;
   for (const it of scoped) {
     const qty = Number(it.quantity) || 0;
     totalUnits += qty;
     allOrders.add(it.order_id);
-    bump(byProduct, it.product_name?.trim() || "—", qty, it.order_id);
-    bump(bySize, it.variant_size?.trim() || "Sem tamanho", qty, it.order_id);
+    const size = it.variant_size?.trim() || "Sem tamanho";
     const color = (it.product_id && colorById.get(it.product_id)) || "Sem cor";
+    bump(byProduct, it.product_name?.trim() || "—", qty, it.order_id);
+    bump(bySize, size, qty, it.order_id);
     bump(byColor, color, qty, it.order_id);
+    const inner = colorSize.get(color) ?? new Map<string, Agg>();
+    bump(inner, size, qty, it.order_id);
+    colorSize.set(color, inner);
     const meta = orderMeta.get(it.order_id);
     if (meta) {
       bump(byPayment, meta.payment, qty, it.order_id);
@@ -603,6 +629,16 @@ export async function getOrdersBreakdown(
       .map(([label, a]) => ({ label, units: a.units, orders: a.orders.size }))
       .sort((x, y) => y.units - x.units || x.label.localeCompare(y.label));
 
+  // Cor × tamanho: cores por volume (maior primeiro); tamanhos em ordem natural.
+  const sizeByColor: ColorSizeGroup[] = [...colorSize.entries()]
+    .map(([color, sizes]) => {
+      const rows = [...sizes.entries()]
+        .map(([label, a]) => ({ label, units: a.units, orders: a.orders.size }))
+        .sort((x, y) => sizeRank(x.label) - sizeRank(y.label) || x.label.localeCompare(y.label));
+      return { color, total: rows.reduce((s, r) => s + r.units, 0), sizes: rows };
+    })
+    .sort((x, y) => y.total - x.total || x.color.localeCompare(y.color));
+
   return {
     totalUnits,
     totalOrders: allOrders.size,
@@ -611,6 +647,7 @@ export async function getOrdersBreakdown(
     byColor: toRows(byColor),
     byPayment: toRows(byPayment),
     byFulfillment: toRows(byFulfillment),
+    sizeByColor,
   };
 }
 
