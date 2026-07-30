@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolvePeriod } from "@/lib/dashboard-period";
 import {
   type BreakdownRow,
-  type ColorSizeGroup,
+  type SizeColorMatrix,
   getOrdersBreakdown,
   listCategories,
 } from "@/lib/queries/admin";
+import { cn } from "@/lib/utils";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -88,7 +89,7 @@ export default async function RelatorioPedidosPage({
         <SummaryTile label="Unidades vendidas" value={report.totalUnits} />
       </div>
 
-      <SizeByColorCard groups={report.sizeByColor} />
+      <SizeColorMatrixCard matrix={report.sizeColorMatrix} />
 
       <BreakdownCard title="Por produto" rows={report.byProduct} />
       <div className="grid gap-4 lg:grid-cols-2">
@@ -110,40 +111,68 @@ function SummaryTile({ label, value }: { label: string; value: number }) {
   );
 }
 
-/** Cruzamento cor × tamanho: um bloco por cor, com os tamanhos e as quantidades. */
-function SizeByColorCard({ groups }: { groups: ColorSizeGroup[] }) {
+/** Matriz tamanho × cor: linhas = tamanhos, colunas = cores, com totais. */
+function SizeColorMatrixCard({ matrix }: { matrix: SizeColorMatrix }) {
+  const { colors, rows, grandTotal } = matrix;
   return (
     <Card className="print:break-inside-avoid print:border-black/20 print:shadow-none">
       <CardHeader className="flex-row items-center justify-between gap-2">
         <CardTitle className="text-base">Tamanhos por cor</CardTitle>
-        <span className="text-xs text-muted-foreground">
-          {groups.length} {groups.length === 1 ? "cor" : "cores"}
-        </span>
+        <span className="text-xs text-muted-foreground">{grandTotal} un</span>
       </CardHeader>
       <CardContent>
-        {groups.length === 0 ? (
+        {rows.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">Sem dados no período.</p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {groups.map((g) => (
-              <div key={g.color} className="rounded-lg border border-border/70 p-3">
-                <div className="flex items-baseline justify-between gap-2 border-b border-border/60 pb-1.5">
-                  <span className="font-semibold">{g.color}</span>
-                  <span className="text-xs text-muted-foreground">{g.total} un</span>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-x-5 gap-y-1">
-                  {g.sizes.map((s) => (
-                    <div
-                      key={s.label}
-                      className="flex items-center justify-between gap-2 text-sm tabular-nums"
-                    >
-                      <span className="text-muted-foreground">{s.label}</span>
-                      <span className="font-semibold">{s.units}</span>
-                    </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[18rem] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border text-[0.7rem] uppercase tracking-wide text-muted-foreground">
+                  <th className="py-2 pr-3 text-left font-medium">Tam.</th>
+                  {colors.map((c) => (
+                    <th key={c.label} className="px-3 py-2 text-right font-medium">
+                      {c.label}
+                    </th>
                   ))}
-                </div>
-              </div>
-            ))}
+                  <th className="py-2 pl-3 text-right font-semibold text-foreground">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.size} className="border-b border-border/50">
+                    <td className="py-2 pr-3 font-medium">{r.size}</td>
+                    {colors.map((c, i) => {
+                      const n = r.cells[i] ?? 0;
+                      return (
+                        <td
+                          key={c.label}
+                          className={cn(
+                            "px-3 py-2 text-right tabular-nums",
+                            n === 0 && "text-muted-foreground/40",
+                          )}
+                        >
+                          {n === 0 ? "—" : n}
+                        </td>
+                      );
+                    })}
+                    <td className="py-2 pl-3 text-right font-semibold tabular-nums">{r.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-border">
+                  <td className="py-2 pr-3 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Total
+                  </td>
+                  {colors.map((c) => (
+                    <td key={c.label} className="px-3 py-2 text-right font-semibold tabular-nums">
+                      {c.total}
+                    </td>
+                  ))}
+                  <td className="py-2 pl-3 text-right font-bold tabular-nums">{grandTotal}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         )}
       </CardContent>

@@ -471,6 +471,8 @@ export interface OrdersBreakdown {
   byFulfillment: BreakdownRow[];
   /** Cruzamento cor × tamanho: os tamanhos vendidos DENTRO de cada cor. */
   sizeByColor: ColorSizeGroup[];
+  /** Mesma info em matriz (linhas = tamanhos, colunas = cores) para a tabela. */
+  sizeColorMatrix: SizeColorMatrix;
 }
 
 /** Distribuição de tamanhos de uma cor (ex.: Preta → P:14, M:32, G:19). */
@@ -478,6 +480,13 @@ export interface ColorSizeGroup {
   color: string;
   total: number;
   sizes: BreakdownRow[];
+}
+
+/** Matriz tamanho × cor (linhas = tamanhos, colunas = cores, com totais). */
+export interface SizeColorMatrix {
+  colors: { label: string; total: number }[];
+  rows: { size: string; cells: number[]; total: number }[];
+  grandTotal: number;
 }
 
 /** Ordem natural de tamanhos de roupa; numéricos (infantil) vêm depois, em ordem. */
@@ -517,6 +526,7 @@ export async function getOrdersBreakdown(
     byPayment: [],
     byFulfillment: [],
     sizeByColor: [],
+    sizeColorMatrix: { colors: [], rows: [], grandTotal: 0 },
   };
   if (!isSupabaseConfigured) return empty;
   const supabase = await createClient();
@@ -639,6 +649,20 @@ export async function getOrdersBreakdown(
     })
     .sort((x, y) => y.total - x.total || x.color.localeCompare(y.color));
 
+  // Mesma info em matriz: colunas = cores (por volume), linhas = tamanhos (ordem natural).
+  const matrixColors = sizeByColor.map((g) => ({ label: g.color, total: g.total }));
+  const matrixSizes = [...new Set([...colorSize.values()].flatMap((m) => [...m.keys()]))].sort(
+    (a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b),
+  );
+  const sizeColorMatrix: SizeColorMatrix = {
+    colors: matrixColors,
+    rows: matrixSizes.map((size) => {
+      const cells = matrixColors.map((c) => colorSize.get(c.label)?.get(size)?.units ?? 0);
+      return { size, cells, total: cells.reduce((s, n) => s + n, 0) };
+    }),
+    grandTotal: matrixColors.reduce((s, c) => s + c.total, 0),
+  };
+
   return {
     totalUnits,
     totalOrders: allOrders.size,
@@ -648,6 +672,7 @@ export async function getOrdersBreakdown(
     byPayment: toRows(byPayment),
     byFulfillment: toRows(byFulfillment),
     sizeByColor,
+    sizeColorMatrix,
   };
 }
 
