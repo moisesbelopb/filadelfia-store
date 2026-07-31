@@ -466,7 +466,11 @@ function Stat({
           <p className="mt-0.5 truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {label}
           </p>
-          {sub && <p className="truncate text-[0.7rem] text-muted-foreground/80">{sub}</p>}
+          {sub && (
+            <span className="mt-2 inline-flex w-fit items-center rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-foreground">
+              {sub}
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>
