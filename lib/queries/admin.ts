@@ -690,27 +690,54 @@ export interface FinancialSummary {
   pendente: FinancialBucket;
 }
 
+/** Resumo financeiro de uma forma de pagamento. */
+export interface FinancialByMethod {
+  method: PaymentMethod;
+  label: string;
+  summary: FinancialSummary;
+}
+
 /**
- * Resumo financeiro por situação de pagamento (Pedido Pago / Pagamento
- * Pendente). Pedidos = soma de `total`; Custo = preço de custo × quantidade dos
- * itens; Lucro = Pedidos − Custo. Cancelados/recusados ficam de fora. Produto
- * sem custo cadastrado conta custo zero.
+ * Dados financeiros por situação de pagamento (Pedido Pago / Pagamento
+ * Pendente), no geral e por forma de pagamento. Pedidos = soma de `total`;
+ * Custo = preço de custo × quantidade dos itens; Lucro = Pedidos − Custo.
+ * Cancelados/recusados ficam de fora. Produto sem custo cadastrado conta zero.
  */
-export async function getFinancialSummary(range?: DashboardRange): Promise<FinancialSummary> {
+export async function getFinancialData(range?: DashboardRange): Promise<{
+  overall: FinancialSummary;
+  byMethod: FinancialByMethod[];
+}> {
   const empty = (): FinancialBucket => ({ pedidos: 0, custo: 0, lucro: 0, count: 0 });
-  const result: FinancialSummary = { geral: empty(), pago: empty(), pendente: empty() };
-  if (!isSupabaseConfigured) return result;
+  const blank = (): FinancialSummary => ({ geral: empty(), pago: empty(), pendente: empty() });
+  const METHODS: { method: PaymentMethod; label: string }[] = [
+    { method: "cartao", label: "Cartão de crédito" },
+    { method: "pix", label: "Pix" },
+    { method: "dinheiro", label: "Dinheiro" },
+  ];
+  const emptyResult = {
+    overall: blank(),
+    byMethod: METHODS.map((m) => ({ ...m, summary: blank() })),
+  };
+  if (!isSupabaseConfigured) return emptyResult;
   const supabase = await createClient();
 
-  let oq = supabase.from("orders").select("id, total, payment_status, status, created_at");
+  let oq = supabase
+    .from("orders")
+    .select("id, total, payment_status, payment_method, status, created_at");
   if (range) oq = oq.gte("created_at", range.start).lte("created_at", range.end);
   const { data: ordersData } = await oq;
   const orders = (
     (ordersData as
-      | { id: string; total: number; payment_status: string; status: OrderStatus }[]
+      | {
+          id: string;
+          total: number;
+          payment_status: string;
+          payment_method: PaymentMethod;
+          status: OrderStatus;
+        }[]
       | null) ?? []
   ).filter((o) => o.status !== "cancelado" && o.status !== "recusado");
-  if (orders.length === 0) return result;
+  if (orders.length === 0) return emptyResult;
 
   const ids = orders.map((o) => o.id);
   const items: { order_id: string; product_id: string | null; quantity: number }[] = [];
@@ -722,7 +749,6 @@ export async function getFinancialSummary(range?: DashboardRange): Promise<Finan
       .in("order_id", ids.slice(i, i + CHUNK));
     items.push(...((data as typeof items | null) ?? []));
   }
-
   const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))] as string[];
   const costById = new Map<string, number>();
   if (productIds.length) {
@@ -740,19 +766,30 @@ export async function getFinancialSummary(range?: DashboardRange): Promise<Finan
     costByOrder.set(it.order_id, (costByOrder.get(it.order_id) ?? 0) + c * it.quantity);
   }
 
-  const add = (b: FinancialBucket, total: number, custo: number) => {
-    b.pedidos += total;
-    b.custo += custo;
-    b.count += 1;
+  const summarize = (list: typeof orders): FinancialSummary => {
+    const r = blank();
+    const add = (b: FinancialBucket, total: number, custo: number) => {
+      b.pedidos += total;
+      b.custo += custo;
+      b.count += 1;
+    };
+    for (const o of list) {
+      const total = Number(o.total);
+      const custo = costByOrder.get(o.id) ?? 0;
+      add(r.geral, total, custo);
+      add(o.payment_status === "pago" ? r.pago : r.pendente, total, custo);
+    }
+    for (const b of [r.geral, r.pago, r.pendente]) b.lucro = b.pedidos - b.custo;
+    return r;
   };
-  for (const o of orders) {
-    const total = Number(o.total);
-    const custo = costByOrder.get(o.id) ?? 0;
-    add(result.geral, total, custo);
-    add(o.payment_status === "pago" ? result.pago : result.pendente, total, custo);
-  }
-  for (const b of [result.geral, result.pago, result.pendente]) b.lucro = b.pedidos - b.custo;
-  return result;
+
+  return {
+    overall: summarize(orders),
+    byMethod: METHODS.map((m) => ({
+      ...m,
+      summary: summarize(orders.filter((o) => o.payment_method === m.method)),
+    })),
+  };
 }
 
 export async function getSetting<T = Record<string, unknown>>(key: string): Promise<T | null> {

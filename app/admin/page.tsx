@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolvePeriod } from "@/lib/dashboard-period";
 import {
   type FinancialBucket,
+  type FinancialByMethod,
   type FinancialSummary,
   getDashboardData,
-  getFinancialSummary,
+  getFinancialData,
 } from "@/lib/queries/admin";
 import { type VisitStats, getVisitStats } from "@/lib/queries/analytics";
 import { cardHighlight, cn, formatBRL, formatDateTime } from "@/lib/utils";
@@ -40,7 +41,7 @@ export default async function AdminDashboard({
   const [dash, visits, fin] = await Promise.all([
     getDashboardData({ start: range.start, end: range.end }),
     getVisitStats({ start: range.start, end: range.end }),
-    getFinancialSummary({ start: range.start, end: range.end }),
+    getFinancialData({ start: range.start, end: range.end }),
   ]);
   const { counts, revenueExpected, ordersTotal, deliveries, stock, recent } = dash;
 
@@ -56,7 +57,9 @@ export default async function AdminDashboard({
 
       <PeriodFilter basePath="/admin" active={range.period} from={range.from} to={range.to} />
 
-      <FinancialCards fin={fin} />
+      <FinancialCards fin={fin.overall} />
+
+      <PaymentMethodSections byMethod={fin.byMethod} />
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         <Stat
@@ -356,6 +359,35 @@ function FinancialCards({ fin }: { fin: FinancialSummary }) {
       <FinCard title="Geral" sub="pago + pendente" bucket={fin.geral} tone="neutral" />
       <FinCard title="Recebido" sub="pedidos pagos" bucket={fin.pago} tone="success" />
       <FinCard title="A receber" sub="pagamento pendente" bucket={fin.pendente} tone="warning" />
+    </div>
+  );
+}
+
+/** Mesmo detalhe financeiro (Geral/Recebido/A receber), separado por forma de pagamento. */
+function PaymentMethodSections({ byMethod }: { byMethod: FinancialByMethod[] }) {
+  return (
+    <div className="flex flex-col gap-5">
+      {byMethod.map((m) => (
+        <div key={m.method} className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold">{m.label}</span>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {m.summary.geral.count} {m.summary.geral.count === 1 ? "pedido" : "pedidos"}
+            </span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
+            <FinCard title="Geral" sub="pago + pendente" bucket={m.summary.geral} tone="neutral" />
+            <FinCard title="Recebido" sub="pedidos pagos" bucket={m.summary.pago} tone="success" />
+            <FinCard
+              title="A receber"
+              sub="pagamento pendente"
+              bucket={m.summary.pendente}
+              tone="warning"
+            />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
