@@ -676,6 +676,85 @@ export async function getOrdersBreakdown(
   };
 }
 
+/** Um bloco financeiro (Geral / Pago / Pendente): pedidos, custo e lucro. */
+export interface FinancialBucket {
+  pedidos: number;
+  custo: number;
+  lucro: number;
+  count: number;
+}
+
+export interface FinancialSummary {
+  geral: FinancialBucket;
+  pago: FinancialBucket;
+  pendente: FinancialBucket;
+}
+
+/**
+ * Resumo financeiro por situação de pagamento (Pedido Pago / Pagamento
+ * Pendente). Pedidos = soma de `total`; Custo = preço de custo × quantidade dos
+ * itens; Lucro = Pedidos − Custo. Cancelados/recusados ficam de fora. Produto
+ * sem custo cadastrado conta custo zero.
+ */
+export async function getFinancialSummary(range?: DashboardRange): Promise<FinancialSummary> {
+  const empty = (): FinancialBucket => ({ pedidos: 0, custo: 0, lucro: 0, count: 0 });
+  const result: FinancialSummary = { geral: empty(), pago: empty(), pendente: empty() };
+  if (!isSupabaseConfigured) return result;
+  const supabase = await createClient();
+
+  let oq = supabase.from("orders").select("id, total, payment_status, status, created_at");
+  if (range) oq = oq.gte("created_at", range.start).lte("created_at", range.end);
+  const { data: ordersData } = await oq;
+  const orders = (
+    (ordersData as
+      | { id: string; total: number; payment_status: string; status: OrderStatus }[]
+      | null) ?? []
+  ).filter((o) => o.status !== "cancelado" && o.status !== "recusado");
+  if (orders.length === 0) return result;
+
+  const ids = orders.map((o) => o.id);
+  const items: { order_id: string; product_id: string | null; quantity: number }[] = [];
+  const CHUNK = 300;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const { data } = await supabase
+      .from("order_items")
+      .select("order_id, product_id, quantity")
+      .in("order_id", ids.slice(i, i + CHUNK));
+    items.push(...((data as typeof items | null) ?? []));
+  }
+
+  const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))] as string[];
+  const costById = new Map<string, number>();
+  if (productIds.length) {
+    const { data: prods } = await supabase
+      .from("products")
+      .select("id, cost_price")
+      .in("id", productIds);
+    for (const p of (prods as { id: string; cost_price: number | null }[] | null) ?? []) {
+      costById.set(p.id, Number(p.cost_price) || 0);
+    }
+  }
+  const costByOrder = new Map<string, number>();
+  for (const it of items) {
+    const c = (it.product_id && costById.get(it.product_id)) || 0;
+    costByOrder.set(it.order_id, (costByOrder.get(it.order_id) ?? 0) + c * it.quantity);
+  }
+
+  const add = (b: FinancialBucket, total: number, custo: number) => {
+    b.pedidos += total;
+    b.custo += custo;
+    b.count += 1;
+  };
+  for (const o of orders) {
+    const total = Number(o.total);
+    const custo = costByOrder.get(o.id) ?? 0;
+    add(result.geral, total, custo);
+    add(o.payment_status === "pago" ? result.pago : result.pendente, total, custo);
+  }
+  for (const b of [result.geral, result.pago, result.pendente]) b.lucro = b.pedidos - b.custo;
+  return result;
+}
+
 export async function getSetting<T = Record<string, unknown>>(key: string): Promise<T | null> {
   if (!isSupabaseConfigured) return null;
   const supabase = await createClient();

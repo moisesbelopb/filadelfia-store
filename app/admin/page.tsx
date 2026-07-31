@@ -2,7 +2,12 @@ import { PeriodFilter } from "@/components/admin/period-filter";
 import { OrderStatusBadge } from "@/components/loja/order-status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolvePeriod } from "@/lib/dashboard-period";
-import { getDashboardData } from "@/lib/queries/admin";
+import {
+  type FinancialBucket,
+  type FinancialSummary,
+  getDashboardData,
+  getFinancialSummary,
+} from "@/lib/queries/admin";
 import { type VisitStats, getVisitStats } from "@/lib/queries/analytics";
 import { cardHighlight, cn, formatBRL, formatDateTime } from "@/lib/utils";
 import {
@@ -32,9 +37,10 @@ export default async function AdminDashboard({
 }) {
   const { period: periodRaw, from, to } = await searchParams;
   const range = resolvePeriod(periodRaw, from, to);
-  const [dash, visits] = await Promise.all([
+  const [dash, visits, fin] = await Promise.all([
     getDashboardData({ start: range.start, end: range.end }),
     getVisitStats({ start: range.start, end: range.end }),
+    getFinancialSummary({ start: range.start, end: range.end }),
   ]);
   const { counts, revenueExpected, ordersTotal, deliveries, stock, recent } = dash;
 
@@ -93,6 +99,8 @@ export default async function AdminDashboard({
           tone="primary"
         />
       </div>
+
+      <FinancialCards fin={fin} />
 
       <VisitsCard visits={visits} />
 
@@ -337,6 +345,73 @@ function StockCount({
       <span className="text-xs font-medium uppercase tracking-wider text-foreground">{label}</span>
       <span className="text-xs text-muted-foreground">{sub}</span>
     </Link>
+  );
+}
+
+/** Três cards financeiros por situação de pagamento: Pedidos, Custo e Lucro. */
+function FinancialCards({ fin }: { fin: FinancialSummary }) {
+  return (
+    <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
+      <FinCard title="Geral" sub="pago + pendente" bucket={fin.geral} tone="neutral" />
+      <FinCard title="Recebido" sub="pedidos pagos" bucket={fin.pago} tone="success" />
+      <FinCard title="A receber" sub="pagamento pendente" bucket={fin.pendente} tone="warning" />
+    </div>
+  );
+}
+
+function FinCard({
+  title,
+  sub,
+  bucket,
+  tone,
+}: {
+  title: string;
+  sub: string;
+  bucket: FinancialBucket;
+  tone: "neutral" | "success" | "warning";
+}) {
+  const dot =
+    tone === "success" ? "bg-success" : tone === "warning" ? "bg-warning" : "bg-foreground";
+  const lucro =
+    tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-foreground";
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-4 p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className={cn("size-2.5 shrink-0 rounded-sm", dot)} />
+            <span className="text-xs font-semibold uppercase tracking-wider">{title}</span>
+            <span className="truncate text-[0.65rem] font-medium text-muted-foreground">
+              · {sub}
+            </span>
+          </div>
+          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            {bucket.count} {bucket.count === 1 ? "pedido" : "pedidos"}
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <div className="flex items-baseline justify-between gap-2 py-1">
+            <span className="text-sm text-muted-foreground">Pedidos</span>
+            <span className="text-base font-semibold tabular-nums">
+              {formatBRL(bucket.pedidos)}
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between gap-2 py-1">
+            <span className="text-sm text-muted-foreground">Custo</span>
+            <span className="text-base font-medium tabular-nums text-muted-foreground">
+              {formatBRL(bucket.custo)}
+            </span>
+          </div>
+          <div className="my-1.5 h-px bg-border" />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider">Lucro</span>
+            <span className={cn("font-display text-2xl font-bold tabular-nums", lucro)}>
+              {formatBRL(bucket.lucro)}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
