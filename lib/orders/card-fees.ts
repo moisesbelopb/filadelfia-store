@@ -2,13 +2,14 @@
  * Cálculo do parcelamento no cartão de crédito (taxas da maquininha).
  *
  * A taxa é SEMPRE repassada ao cliente (modelo líquido): o cliente paga o
- * pedido + a taxa, e a loja recebe o valor cheio do pedido. O acréscimo do
- * parcelamento é aplicado como juros de antecipação compostos (fórmula "B",
- * calibrada com o app da maquininha — bate dentro de centavos).
+ * pedido + a taxa, e a loja recebe o valor cheio do pedido.
  *
- * Fonte única: usado no checkout, na tela do pedido e no admin. Se um dia a
- * loja quiser bater ao centavo, basta trocar RATES por uma tabela de
- * coeficientes exatos do app.
+ * Usamos os COEFICIENTES EXATOS do app da maquininha (medidos com R$ 100,00 no
+ * simulador do app) — batem ao centavo com o app. Para outros valores, o total é
+ * `pedido × coeficiente` arredondado (fica dentro de ~1 centavo).
+ *
+ * Fonte única: usado no checkout, na tela do pedido e no admin. Se as taxas do
+ * app mudarem, basta atualizar a tabela COEF abaixo (Total ÷ 100 de cada parcela).
  */
 
 export type CardBrand = "visa" | "master" | "outros";
@@ -21,11 +22,14 @@ export const CARD_BRANDS: { value: CardBrand; label: string }[] = [
 
 export const MAX_INSTALLMENTS = 6;
 
-/** Taxas por bandeira (dos prints): à vista, parcelado 2–6x, acréscimo/mês. */
-const RATES: Record<CardBrand, { avista: number; parcelado: number; mes: number }> = {
-  visa: { avista: 3.21, parcelado: 3.01, mes: 1.41 },
-  master: { avista: 3.11, parcelado: 3.01, mes: 1.41 },
-  outros: { avista: 3.99, parcelado: 3.99, mes: 2.99 },
+/**
+ * Coeficiente de repasse por bandeira (índice 0 = 1x … índice 5 = 6x).
+ * Origem: "Total de R$" do simulador do app para uma venda de R$ 100,00.
+ */
+const COEF: Record<CardBrand, number[]> = {
+  visa: [1.0332, 1.0537, 1.0612, 1.0689, 1.0766, 1.0842],
+  master: [1.0321, 1.0537, 1.0612, 1.0689, 1.0766, 1.0842],
+  outros: [1.0363, 1.0553, 1.0629, 1.0706, 1.0783, 1.086],
 };
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
@@ -36,14 +40,7 @@ function clampN(installments: number): number {
 
 /** Fator de repasse (líquido): quanto o cliente paga por real de pedido. */
 export function cardCoef(brand: CardBrand, installments: number): number {
-  const r = RATES[brand];
-  const n = clampN(installments);
-  if (n <= 1) return 1 / (1 - r.avista / 100);
-  const i = r.mes / 100;
-  let sum = 0;
-  for (let k = 1; k <= n; k++) sum += 1 / (1 + i) ** k; // valor presente das N parcelas
-  const vp = sum / n;
-  return 1 / (vp - r.parcelado / 100);
+  return COEF[brand][clampN(installments) - 1] ?? 1;
 }
 
 /** Total cobrado no cartão (pedido + taxa repassada). */
@@ -60,7 +57,7 @@ export function cardInstallmentValue(
   return round2(cardTotal(brand, installments, orderTotal) / clampN(installments));
 }
 
-/** Taxa efetiva embutida no total (%). */
+/** Taxa efetiva embutida no total (%) — uso interno, não exibida ao cliente. */
 export function cardFeePct(brand: CardBrand, installments: number): number {
   return (1 - 1 / cardCoef(brand, installments)) * 100;
 }
@@ -69,7 +66,7 @@ export function cardBrandLabel(brand: CardBrand): string {
   return CARD_BRANDS.find((b) => b.value === brand)?.label ?? brand;
 }
 
-/** Resumo pronto para exibir: "Mastercard · 3x de R$ 42,33 (total R$ 126,99)". */
+/** Resumo pronto para exibir: "Mastercard · 3x de R$ 35,37 (total R$ 106,12)". */
 export function cardSummary(
   brand: CardBrand,
   installments: number,
