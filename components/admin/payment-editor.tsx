@@ -126,7 +126,7 @@ export function PaymentEditor({
                   >
                     {Array.from({ length: MAX_INSTALLMENTS }, (_, i) => i + 1).map((n) => (
                       <option key={n} value={n}>
-                        {n}x{n === 1 ? " (à vista)" : ""}
+                        {n}x{n === 1 ? " (Vencimento)" : ""}
                       </option>
                     ))}
                   </Select>

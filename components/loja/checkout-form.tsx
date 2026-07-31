@@ -434,7 +434,7 @@ export function CheckoutForm({
                         >
                           <span className="font-medium">
                             {n}x de {formatBRL(cardInstallmentValue(cardBrand, n, total))}
-                            {n === 1 ? " (à vista)" : ""}
+                            {n === 1 ? " (Vencimento)" : ""}
                           </span>
                           <span className="text-xs text-muted-foreground">
                             total {formatBRL(cardTotal(cardBrand, n, total))}
