@@ -1,17 +1,29 @@
 import { PeriodFilter } from "@/components/admin/period-filter";
 import { OrderStatusBadge } from "@/components/loja/order-status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolvePeriod } from "@/lib/dashboard-period";
+import { cardBrandLabel } from "@/lib/orders/card-fees";
 import { STATUS_LABEL } from "@/lib/orders/fsm";
 import { listAdminOrders } from "@/lib/queries/admin";
 import { cardHighlight, cn, formatBRL, formatDateTime } from "@/lib/utils";
-import type { OrderStatus } from "@/types/db";
+import type { Order, OrderStatus } from "@/types/db";
 import { BarChart3, ClipboardList, Search } from "lucide-react";
 import Link from "next/link";
 
 // Depende do período/searchParams e da data atual — sempre dinâmico.
 export const dynamic = "force-dynamic";
+
+/** Forma de pagamento para exibir na lista (com bandeira e parcelas no cartão). */
+function paymentMethodLabel(o: Order): string {
+  if (o.payment_method === "pix") return "Pix";
+  if (o.payment_method === "dinheiro") return "Dinheiro";
+  const parts = ["Cartão de crédito"];
+  if (o.card_brand) parts.push(cardBrandLabel(o.card_brand));
+  if (o.card_installments) parts.push(`${o.card_installments}x`);
+  return parts.join(" · ");
+}
 
 const FILTERS: (OrderStatus | "todos")[] = [
   "todos",
@@ -150,6 +162,15 @@ export default async function AdminOrdersPage({
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {formatDateTime(o.created_at)} · {o.customer_whatsapp}
+                  </span>
+                  <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="truncate">{paymentMethodLabel(o)}</span>
+                    <Badge
+                      variant={o.payment_status === "pago" ? "success" : "warning"}
+                      className="px-1.5 py-0 text-[0.65rem]"
+                    >
+                      {o.payment_status === "pago" ? "Pago" : "Pendente"}
+                    </Badge>
                   </span>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
