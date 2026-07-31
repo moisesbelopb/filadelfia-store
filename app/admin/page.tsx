@@ -94,6 +94,7 @@ export default async function AdminDashboard({
         />
         <Stat
           label="Faturamento previsto"
+          sub="Pedidos aceitos"
           value={formatBRL(revenueExpected)}
           icon={Wallet}
           tone="primary"
@@ -424,12 +425,14 @@ const TONES: Record<"primary" | "success" | "warning" | "danger", string> = {
 
 function Stat({
   label,
+  sub,
   value,
   icon: Icon,
   tone,
   href,
 }: {
   label: string;
+  sub?: string;
   value: string | number;
   icon: React.ComponentType<{ className?: string }>;
   tone: "primary" | "success" | "warning" | "danger";
@@ -463,6 +466,7 @@ function Stat({
           <p className="mt-0.5 truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {label}
           </p>
+          {sub && <p className="truncate text-[0.7rem] text-muted-foreground/80">{sub}</p>}
         </div>
       </CardContent>
     </Card>
