@@ -7,6 +7,25 @@ export const orderStatusSchema = z.object({
 });
 export type OrderStatusInput = z.infer<typeof orderStatusSchema>;
 
+/** Edição da forma de pagamento pelo admin (corrigir o que foi realmente pago). */
+export const paymentEditSchema = z
+  .object({
+    orderId: z.string().uuid(),
+    paymentMethod: z.enum(["pix", "dinheiro", "cartao"]),
+    cardBrand: z.enum(["visa", "master", "outros"]).nullable().optional(),
+    cardInstallments: z.coerce.number().int().min(1).max(6).nullable().optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (d.paymentMethod !== "cartao") return;
+    if (!d.cardBrand) {
+      ctx.addIssue({ code: "custom", path: ["cardBrand"], message: "Escolha a bandeira" });
+    }
+    if (!d.cardInstallments) {
+      ctx.addIssue({ code: "custom", path: ["cardInstallments"], message: "Escolha as parcelas" });
+    }
+  });
+export type PaymentEditInput = z.infer<typeof paymentEditSchema>;
+
 export const productSchema = z.object({
   name: z.string().min(2, "Informe o nome"),
   categoryId: z.preprocess(

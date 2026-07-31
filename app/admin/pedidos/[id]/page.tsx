@@ -1,4 +1,5 @@
 import { OrderActions } from "@/components/admin/order-actions";
+import { PaymentEditor } from "@/components/admin/payment-editor";
 import { OrderRealtime } from "@/components/loja/order-realtime";
 import { OrderStatusBadge } from "@/components/loja/order-status-badge";
 import { OrderTimeline } from "@/components/loja/order-timeline";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { notificationEventLabel } from "@/lib/email/defaults";
+import { cardSummary } from "@/lib/orders/card-fees";
 import { formatScheduled } from "@/lib/orders/delivery";
 import { pixMessage, whatsappLink } from "@/lib/orders/template";
 import { getAdminOrder, getMessageTemplate, getSetting } from "@/lib/queries/admin";
@@ -53,7 +55,11 @@ export default async function AdminOrderDetail({
       ? "Pix"
       : order.payment_method === "dinheiro"
         ? "Dinheiro"
-        : "Cartão (maquininha)";
+        : "Cartão de crédito";
+  const cardInfo =
+    order.payment_method === "cartao" && order.card_brand && order.card_installments
+      ? cardSummary(order.card_brand, order.card_installments, order.total)
+      : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -124,6 +130,19 @@ export default async function AdminOrderDetail({
               </Badge>
               {cardMachine && <Badge variant="warning">Levar maquineta</Badge>}
             </div>
+            {cardInfo && (
+              <p className="text-sm text-foreground">
+                {cardInfo.brandLabel} · {cardInfo.installments}x de {formatBRL(cardInfo.parcela)}{" "}
+                <span className="text-muted-foreground">(total {formatBRL(cardInfo.total)})</span>
+              </p>
+            )}
+            <PaymentEditor
+              orderId={order.id}
+              total={order.total}
+              paymentMethod={order.payment_method}
+              cardBrand={order.card_brand ?? null}
+              cardInstallments={order.card_installments ?? null}
+            />
 
             <Button asChild variant="success" className="mt-3 w-fit">
               <a href={waHref} target="_blank" rel="noopener noreferrer">

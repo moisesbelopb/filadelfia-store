@@ -41,13 +41,37 @@ export const checkoutSchema = z
     scheduledWindow: z.string().min(1, "Escolha um horário"),
     notes: z.string().max(500).optional(),
     paymentMethod: z.enum(["pix", "dinheiro", "cartao"]),
+    // Cartão de crédito: bandeira e parcelamento (obrigatórios só no cartão).
+    cardBrand: z.enum(["visa", "master", "outros"]).optional(),
+    cardInstallments: z.coerce.number().int().min(1).max(6).optional(),
   })
   .superRefine((d, ctx) => {
-    if (d.fulfillment !== "entrega") return;
-    const parsed = addressSchema.safeParse(d.address);
-    if (!parsed.success) {
-      for (const issue of parsed.error.issues) {
-        ctx.addIssue({ code: "custom", path: ["address", ...issue.path], message: issue.message });
+    if (d.fulfillment === "entrega") {
+      const parsed = addressSchema.safeParse(d.address);
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["address", ...issue.path],
+            message: issue.message,
+          });
+        }
+      }
+    }
+    if (d.paymentMethod === "cartao") {
+      if (!d.cardBrand) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["cardBrand"],
+          message: "Escolha a bandeira do cartão",
+        });
+      }
+      if (!d.cardInstallments) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["cardInstallments"],
+          message: "Escolha em quantas vezes",
+        });
       }
     }
   });

@@ -122,6 +122,9 @@ export interface Order {
   notes: string | null;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
+  /** Cartão de crédito: bandeira e nº de parcelas (nulos fora do cartão). */
+  card_brand?: "visa" | "master" | "outros" | null;
+  card_installments?: number | null;
   /** "entrega" (motoboy) ou "retirada" (na igreja). */
   fulfillment_type: FulfillmentType;
   /** Data agendada (YYYY-MM-DD) ou nulo. */

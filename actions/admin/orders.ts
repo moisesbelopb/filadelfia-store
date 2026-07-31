@@ -9,7 +9,7 @@ import { dispatchOrderEmail } from "@/lib/notifications/order-email";
 import { REASON_REQUIRED, canTransition } from "@/lib/orders/fsm";
 import { statusWhatsappMessage, whatsappLink } from "@/lib/orders/template";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { orderStatusSchema } from "@/lib/validators/admin";
+import { orderStatusSchema, paymentEditSchema } from "@/lib/validators/admin";
 import type { EmailSettings, FulfillmentType, OrderStatus } from "@/types/db";
 import { revalidatePath } from "next/cache";
 
@@ -142,5 +142,42 @@ export async function markOrderPaid(orderId: string): Promise<ActionResult> {
   await logAudit(user?.id ?? null, "order.paid", "order", orderId);
 
   revalidatePath(`/admin/pedidos/${orderId}`);
+  return ok(undefined);
+}
+
+/**
+ * Corrige a forma de pagamento do pedido (Pix / Dinheiro / Cartão de crédito
+ * com bandeira + parcelas), para deixar o registro fiel ao que foi realmente
+ * pago na retirada/entrega. Fora do cartão, zera bandeira e parcelas.
+ */
+export async function updateOrderPayment(input: unknown): Promise<ActionResult> {
+  if (!isSupabaseConfigured) return fail("Configure o Supabase.");
+  if (!(await isAdminUser())) return fail("Acesso negado.");
+
+  const parsed = paymentEditSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Dados inválidos.");
+  const { orderId, paymentMethod, cardBrand, cardInstallments } = parsed.data;
+  const isCard = paymentMethod === "cartao";
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      payment_method: paymentMethod,
+      card_brand: isCard ? cardBrand : null,
+      card_installments: isCard ? cardInstallments : null,
+    })
+    .eq("id", orderId);
+  if (error) return fail(error.message);
+
+  const user = await getCurrentUser();
+  await logAudit(user?.id ?? null, "order.payment", "order", orderId, {
+    paymentMethod,
+    cardBrand: isCard ? cardBrand : null,
+    cardInstallments: isCard ? cardInstallments : null,
+  });
+
+  revalidatePath(`/admin/pedidos/${orderId}`);
+  revalidatePath("/admin/pedidos");
   return ok(undefined);
 }

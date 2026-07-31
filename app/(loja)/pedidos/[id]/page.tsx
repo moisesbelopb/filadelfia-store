@@ -7,6 +7,7 @@ import { WhatsappShare } from "@/components/loja/whatsapp-share";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SITE_URL } from "@/lib/env";
+import { cardSummary } from "@/lib/orders/card-fees";
 import { formatScheduled } from "@/lib/orders/delivery";
 import { PAYMENT_LABEL } from "@/lib/orders/fsm";
 import { pixComprovanteMessage, resolveStorePix, whatsappLink } from "@/lib/orders/template";
@@ -51,6 +52,11 @@ export default async function PedidoDetailPage({
       />
     );
   }
+
+  const cardInfo =
+    order.payment_method === "cartao" && order.card_brand && order.card_installments
+      ? cardSummary(order.card_brand, order.card_installments, order.total)
+      : null;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-8">
@@ -144,11 +150,23 @@ export default async function PedidoDetailPage({
           )}
           {order.notes && <p className="mt-1 italic">“{order.notes}”</p>}
           <Separator className="my-2" />
-          <p>
-            Pagamento:{" "}
-            <span className="text-foreground">{PAYMENT_LABEL[order.payment_method]}</span> ·{" "}
-            {order.payment_status === "pago" ? "Pago" : "Pendente"}
-          </p>
+          {cardInfo ? (
+            <p>
+              Pagamento:{" "}
+              <span className="text-foreground">
+                Cartão de crédito · {cardInfo.brandLabel} · {cardInfo.installments}x de{" "}
+                {formatBRL(cardInfo.parcela)}
+              </span>{" "}
+              (total {formatBRL(cardInfo.total)}) ·{" "}
+              {order.payment_status === "pago" ? "Pago" : "Pendente"}
+            </p>
+          ) : (
+            <p>
+              Pagamento:{" "}
+              <span className="text-foreground">{PAYMENT_LABEL[order.payment_method]}</span> ·{" "}
+              {order.payment_status === "pago" ? "Pago" : "Pendente"}
+            </p>
+          )}
         </CardContent>
       </Card>
 

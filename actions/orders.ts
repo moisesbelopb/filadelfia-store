@@ -88,6 +88,20 @@ export async function placeOrder(
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) return fail("Falha ao criar o pedido.");
 
+  // Cartão de crédito: grava bandeira + parcelas (a RPC não recebe esses campos;
+  // UPDATE de orders é restrito ao admin na RLS, então usa o service client).
+  if (d.paymentMethod === "cartao" && d.cardBrand && d.cardInstallments) {
+    try {
+      const service = createServiceClient();
+      await service
+        .from("orders")
+        .update({ card_brand: d.cardBrand, card_installments: d.cardInstallments })
+        .eq("id", row.order_id as string);
+    } catch {
+      // best-effort: não bloqueia o pedido se o registro do cartão falhar.
+    }
+  }
+
   // Guarda contato/endereço no perfil: pré-preenche o próximo checkout e
   // alimenta o cadastro de clientes no admin (best-effort — não falha o pedido).
   try {

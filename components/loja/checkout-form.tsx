@@ -9,6 +9,12 @@ import { NameInput } from "@/components/ui/name-input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  CARD_BRANDS,
+  MAX_INSTALLMENTS,
+  cardInstallmentValue,
+  cardTotal,
+} from "@/lib/orders/card-fees";
 import { findCityFee, upcomingSlots } from "@/lib/orders/delivery";
 import { toast } from "@/lib/use-toast";
 import { cn, formatBRL } from "@/lib/utils";
@@ -70,6 +76,8 @@ export function CheckoutForm({
       customerWhatsapp: defaults?.customerWhatsapp ?? "",
       fulfillment: availableModes[0],
       paymentMethod: "pix",
+      cardBrand: undefined,
+      cardInstallments: 1,
       notes: "",
       scheduledDate: "",
       scheduledWindow: "",
@@ -88,6 +96,8 @@ export function CheckoutForm({
   const fulfillment = watch("fulfillment");
   const city = watch("address.city") ?? "";
   const paymentMethod = watch("paymentMethod");
+  const cardBrand = watch("cardBrand");
+  const cardInstallments = watch("cardInstallments");
   const scheduledDate = watch("scheduledDate");
   const scheduledWindow = watch("scheduledWindow");
   const isDelivery = fulfillment === "entrega";
@@ -369,13 +379,81 @@ export function CheckoutForm({
             <Select {...register("paymentMethod")}>
               <option value="pix">Pix</option>
               <option value="dinheiro">Dinheiro</option>
-              <option value="cartao">Cartão (maquininha)</option>
+              <option value="cartao">Cartão de crédito</option>
             </Select>
           </Field>
-          {paymentMethod === "cartao" && isDelivery && (
-            <p className="rounded-md bg-secondary/60 p-3 text-xs text-muted-foreground">
-              🛵 O <strong>motoboy leva a maquineta</strong> para o pagamento no cartão.
-            </p>
+
+          {paymentMethod === "cartao" && (
+            <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/30 p-3">
+              {isDelivery && (
+                <p className="text-xs text-muted-foreground">
+                  🛵 O <strong>motoboy leva a maquineta</strong> na entrega.
+                </p>
+              )}
+              <div>
+                <p className="mb-2 text-sm font-medium">Bandeira do cartão</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {CARD_BRANDS.map((b) => (
+                    <button
+                      key={b.value}
+                      type="button"
+                      onClick={() => setValue("cardBrand", b.value, { shouldValidate: true })}
+                      className={cn(
+                        "rounded-lg border px-2 py-2.5 text-sm font-medium transition-colors",
+                        cardBrand === b.value
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border hover:bg-secondary",
+                      )}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+                {errors.cardBrand && (
+                  <p className="mt-1 text-xs text-destructive">{errors.cardBrand.message}</p>
+                )}
+              </div>
+
+              {cardBrand && (
+                <div>
+                  <p className="mb-2 text-sm font-medium">Em quantas vezes?</p>
+                  <div className="flex flex-col gap-1.5">
+                    {Array.from({ length: MAX_INSTALLMENTS }, (_, idx) => idx + 1).map((n) => {
+                      const selected = Number(cardInstallments) === n;
+                      return (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setValue("cardInstallments", n, { shouldValidate: true })}
+                          className={cn(
+                            "flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+                            selected
+                              ? "border-primary bg-primary/5 ring-1 ring-primary"
+                              : "border-border hover:bg-secondary",
+                          )}
+                        >
+                          <span className="font-medium">
+                            {n}x de {formatBRL(cardInstallmentValue(cardBrand, n, total))}
+                            {n === 1 ? " (à vista)" : ""}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            total {formatBRL(cardTotal(cardBrand, n, total))}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {errors.cardInstallments && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {errors.cardInstallments.message}
+                    </p>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    A taxa da maquininha é somada ao valor. Você paga o total acima no cartão.
+                  </p>
+                </div>
+              )}
+            </div>
           )}
           <Field label="Observação (opcional)" error={errors.notes?.message}>
             <Textarea {...register("notes")} placeholder="Ponto de referência, troco, etc." />
