@@ -56,6 +56,8 @@ export default async function AdminDashboard({
 
       <PeriodFilter basePath="/admin" active={range.period} from={range.from} to={range.to} />
 
+      <FinancialCards fin={fin} />
+
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         <Stat
           label="Aguardando"
@@ -100,8 +102,6 @@ export default async function AdminDashboard({
           tone="primary"
         />
       </div>
-
-      <FinancialCards fin={fin} />
 
       <VisitsCard visits={visits} />
 
