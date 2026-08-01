@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RECEIPT_ACCEPT, prepareReceipt } from "@/lib/image/receipt";
 import type { OrderReceipt } from "@/lib/queries/admin";
 import { toast } from "@/lib/use-toast";
-import { FileText, Trash2, Upload } from "lucide-react";
+import { ExternalLink, FileText, Trash2, Upload } from "lucide-react";
 import { useRef, useTransition } from "react";
 
 function fmtSize(bytes: number): string {
@@ -14,7 +14,7 @@ function fmtSize(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-/** Comprovantes de pagamento do pedido: anexar (com compressão), ver e remover. */
+/** Comprovantes de pagamento do pedido: anexar (vários, com compressão), ver e excluir. */
 export function OrderReceipts({
   orderId,
   receipts,
@@ -25,24 +25,37 @@ export function OrderReceipts({
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
 
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
     startTransition(async () => {
-      const prepared = await prepareReceipt(file); // valida e comprime >3MB no navegador
-      if (!prepared.ok) {
-        toast({ variant: "error", title: "Arquivo inválido", description: prepared.error });
-        if (inputRef.current) inputRef.current.value = "";
-        return;
+      let done = 0;
+      const errors: string[] = [];
+      for (const file of files) {
+        const prepared = await prepareReceipt(file); // valida e comprime >3MB no navegador
+        if (!prepared.ok) {
+          errors.push(prepared.error);
+          continue;
+        }
+        const fd = new FormData();
+        fd.set("file", prepared.file);
+        const res = await uploadOrderReceipt(orderId, fd);
+        if (res.ok) done += 1;
+        else errors.push(res.error ?? "Falha no envio.");
       }
-      const fd = new FormData();
-      fd.set("file", prepared.file);
-      const res = await uploadOrderReceipt(orderId, fd);
-      toast(
-        res.ok
-          ? { variant: "success", title: "Comprovante anexado" }
-          : { variant: "error", title: "Falha no anexo", description: res.error },
-      );
+      if (done > 0) {
+        toast({
+          variant: "success",
+          title: `${done} comprovante${done > 1 ? "s" : ""} anexado${done > 1 ? "s" : ""}`,
+        });
+      }
+      if (errors.length > 0) {
+        toast({
+          variant: "error",
+          title: `${errors.length} não anexado${errors.length > 1 ? "s" : ""}`,
+          description: errors[0],
+        });
+      }
       if (inputRef.current) inputRef.current.value = "";
     });
   }
@@ -51,7 +64,7 @@ export function OrderReceipts({
     startTransition(async () => {
       const res = await deleteOrderReceipt(orderId, name);
       if (!res.ok) toast({ variant: "error", title: "Erro", description: res.error });
-      else toast({ variant: "success", title: "Comprovante removido" });
+      else toast({ variant: "success", title: "Comprovante excluído" });
     });
   }
 
@@ -94,18 +107,29 @@ export function OrderReceipts({
                     />
                   )}
                 </a>
-                <div className="flex items-center justify-between gap-1 px-2 py-1 text-[0.65rem] text-muted-foreground">
+
+                {/* Excluir — visível, no canto superior. */}
+                <button
+                  type="button"
+                  onClick={() => remove(r.name)}
+                  disabled={pending}
+                  className="absolute right-1.5 top-1.5 inline-flex size-8 items-center justify-center rounded-full bg-background/90 text-destructive shadow-sm backdrop-blur transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-40"
+                  aria-label="Excluir comprovante"
+                  title="Excluir comprovante"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+
+                <div className="flex items-center justify-between gap-1 px-2 py-1.5 text-[0.7rem] text-muted-foreground">
                   <span className="tabular-nums">{fmtSize(r.size)}</span>
-                  <button
-                    type="button"
-                    onClick={() => remove(r.name)}
-                    disabled={pending}
-                    className="text-muted-foreground transition-colors hover:text-destructive disabled:opacity-40"
-                    aria-label="Remover comprovante"
-                    title="Remover"
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-medium hover:text-foreground"
                   >
-                    <Trash2 className="size-3.5" />
-                  </button>
+                    Ver <ExternalLink className="size-3" />
+                  </a>
                 </div>
               </div>
             ))}
@@ -116,12 +140,14 @@ export function OrderReceipts({
           ref={inputRef}
           type="file"
           accept={RECEIPT_ACCEPT}
+          multiple
           className="hidden"
-          onChange={onFile}
+          onChange={onFiles}
         />
         <p className="text-xs text-muted-foreground">
-          Imagem (JPG, PNG, WebP) ou PDF, até <strong>3 MB</strong>. Imagens maiores são{" "}
-          <strong>compactadas automaticamente</strong> antes de anexar.
+          Você pode anexar <strong>vários arquivos</strong> (imagem JPG/PNG/WebP ou PDF), até{" "}
+          <strong>3 MB</strong> cada. Imagens maiores são{" "}
+          <strong>compactadas automaticamente</strong>.
         </p>
       </CardContent>
     </Card>
