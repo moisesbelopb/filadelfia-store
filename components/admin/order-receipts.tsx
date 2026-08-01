@@ -1,13 +1,14 @@
 "use client";
 
 import { deleteOrderReceipt, uploadOrderReceipt } from "@/actions/admin/receipts";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RECEIPT_ACCEPT, prepareReceipt } from "@/lib/image/receipt";
 import type { OrderReceipt } from "@/lib/queries/admin";
 import { toast } from "@/lib/use-toast";
+import { cn } from "@/lib/utils";
 import { ExternalLink, FileText, Trash2, Upload } from "lucide-react";
-import { useRef, useTransition } from "react";
+import { useTransition } from "react";
 
 function fmtSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -22,11 +23,11 @@ export function OrderReceipts({
   orderId: string;
   receipts: OrderReceipt[];
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
 
   function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
+    const input = e.currentTarget;
+    const files = Array.from(input.files ?? []);
     if (files.length === 0) return;
     startTransition(async () => {
       let done = 0;
@@ -56,7 +57,7 @@ export function OrderReceipts({
           description: errors[0],
         });
       }
-      if (inputRef.current) inputRef.current.value = "";
+      input.value = "";
     });
   }
 
@@ -72,15 +73,24 @@ export function OrderReceipts({
     <Card>
       <CardHeader className="flex-row items-center justify-between gap-2">
         <CardTitle className="text-base">Comprovantes de pagamento</CardTitle>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={pending}
-          onClick={() => inputRef.current?.click()}
+        {/* Label nativo (não JS .click): abre o seletor na hora pelo gesto do clique. */}
+        <label
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "cursor-pointer",
+            pending && "pointer-events-none opacity-60",
+          )}
         >
           <Upload className="size-4" /> {pending ? "Enviando..." : "Anexar"}
-        </Button>
+          <input
+            type="file"
+            accept={RECEIPT_ACCEPT}
+            multiple
+            className="sr-only"
+            onChange={onFiles}
+            disabled={pending}
+          />
+        </label>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {receipts.length === 0 ? (
@@ -136,14 +146,6 @@ export function OrderReceipts({
           </div>
         )}
 
-        <input
-          ref={inputRef}
-          type="file"
-          accept={RECEIPT_ACCEPT}
-          multiple
-          className="hidden"
-          onChange={onFiles}
-        />
         <p className="text-xs text-muted-foreground">
           Você pode anexar <strong>vários arquivos</strong> (imagem JPG/PNG/WebP ou PDF), até{" "}
           <strong>3 MB</strong> cada. Imagens maiores são{" "}
