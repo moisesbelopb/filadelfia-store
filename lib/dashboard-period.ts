@@ -9,7 +9,7 @@ const SP_TZ = "America/Sao_Paulo";
 const SP_OFFSET = "-03:00";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export type PeriodKey = "hoje" | "mes" | "custom";
+export type PeriodKey = "tudo" | "hoje" | "mes" | "custom";
 
 export interface ResolvedPeriod {
   period: PeriodKey;
@@ -54,6 +54,7 @@ export function resolvePeriod(
 ): ResolvedPeriod {
   const today = spToday();
   const nowISO = new Date().toISOString();
+  const first = `${today.slice(0, 7)}-01`;
 
   if (periodRaw === "hoje") {
     return {
@@ -62,6 +63,17 @@ export function resolvePeriod(
       end: nowISO,
       label: `Hoje · ${fmtBR(today)}`,
       from: today,
+      to: today,
+    };
+  }
+
+  if (periodRaw === "mes") {
+    return {
+      period: "mes",
+      start: `${first}T00:00:00${SP_OFFSET}`,
+      end: nowISO,
+      label: monthLabel(today),
+      from: first,
       to: today,
     };
   }
@@ -79,13 +91,13 @@ export function resolvePeriod(
     };
   }
 
-  // Padrão: mês atual, do dia 1 até agora.
-  const first = `${today.slice(0, 7)}-01`;
+  // Padrão: TUDO (sem filtro de data) — desde o início até agora. O intervalo
+  // ainda cobre todos os pedidos; `from/to` são só os defaults do formulário.
   return {
-    period: "mes",
-    start: `${first}T00:00:00${SP_OFFSET}`,
+    period: "tudo",
+    start: `2000-01-01T00:00:00${SP_OFFSET}`,
     end: nowISO,
-    label: monthLabel(today),
+    label: "Todo o período",
     from: first,
     to: today,
   };

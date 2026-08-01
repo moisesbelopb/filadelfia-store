@@ -37,6 +37,13 @@ export function PeriodFilter({
       {/* Atalhos: dividem a linha no mobile (parecem um seletor), naturais no desktop. */}
       <div className="flex gap-2">
         <PeriodPill
+          href={hrefWith({ period: undefined })}
+          active={active === "tudo"}
+          className="flex-1 text-center sm:flex-none"
+        >
+          Tudo
+        </PeriodPill>
+        <PeriodPill
           href={hrefWith({ period: "hoje" })}
           active={active === "hoje"}
           className="flex-1 text-center sm:flex-none"
@@ -44,7 +51,7 @@ export function PeriodFilter({
           Hoje
         </PeriodPill>
         <PeriodPill
-          href={hrefWith({ period: undefined })}
+          href={hrefWith({ period: "mes" })}
           active={active === "mes"}
           className="flex-1 text-center sm:flex-none"
         >
