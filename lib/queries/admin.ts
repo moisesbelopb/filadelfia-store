@@ -531,13 +531,20 @@ export async function getOrdersBreakdown(
   };
   if (!isSupabaseConfigured) return empty;
   const supabase = await createClient();
+  const CHUNK = 300;
 
-  // 1) Pedidos do período; descarta cancelados/recusados (não são demanda real).
+  // 1) (paralelo) Pedidos do período + cor/categoria de TODOS os produtos.
+  // Catálogo é pequeno; buscar tudo de uma vez evita uma 3ª ida ao banco (distante)
+  // dependente dos itens. Descarta cancelados/recusados (não são demanda real).
   let oq = supabase
     .from("orders")
     .select("id, status, payment_method, fulfillment_type, created_at");
   if (range) oq = oq.gte("created_at", range.start).lte("created_at", range.end);
-  const { data: ordersData } = await oq;
+  const [{ data: ordersData }, { data: prodMeta }] = await Promise.all([
+    oq,
+    supabase.from("products").select("id, color_name, category_id"),
+  ]);
+
   const validOrders = (
     (ordersData as
       | {
@@ -565,34 +572,30 @@ export async function getOrdersBreakdown(
     });
   }
 
-  // 2) Itens desses pedidos (em lotes, p/ não estourar o filtro `in`).
-  const items: BreakdownItem[] = [];
-  const CHUNK = 300;
-  for (let i = 0; i < validIds.length; i += CHUNK) {
-    const { data } = await supabase
-      .from("order_items")
-      .select("order_id, product_id, product_name, variant_size, quantity")
-      .in("order_id", validIds.slice(i, i + CHUNK));
-    items.push(...((data as BreakdownItem[] | null) ?? []));
-  }
-  if (items.length === 0) return empty;
-
-  // 3) Cor e categoria atuais de cada produto (o item não guarda cor/categoria).
-  const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))] as string[];
+  // Cor e categoria atuais de cada produto (o item não guarda cor/categoria).
   const colorById = new Map<string, string>();
   const categoryById = new Map<string, string>();
-  if (productIds.length) {
-    const { data: prods } = await supabase
-      .from("products")
-      .select("id, color_name, category_id")
-      .in("id", productIds);
-    for (const p of (prods as
-      | { id: string; color_name: string | null; category_id: string | null }[]
-      | null) ?? []) {
-      if (p.color_name?.trim()) colorById.set(p.id, p.color_name.trim());
-      if (p.category_id) categoryById.set(p.id, p.category_id);
-    }
+  for (const p of (prodMeta as
+    | { id: string; color_name: string | null; category_id: string | null }[]
+    | null) ?? []) {
+    if (p.color_name?.trim()) colorById.set(p.id, p.color_name.trim());
+    if (p.category_id) categoryById.set(p.id, p.category_id);
   }
+
+  // 2) Itens desses pedidos (lotes paralelos, p/ não estourar o filtro `in`).
+  const chunks: string[][] = [];
+  for (let i = 0; i < validIds.length; i += CHUNK) chunks.push(validIds.slice(i, i + CHUNK));
+  const itemChunks = await Promise.all(
+    chunks.map((c) =>
+      supabase
+        .from("order_items")
+        .select("order_id, product_id, product_name, variant_size, quantity")
+        .in("order_id", c),
+    ),
+  );
+  const items: BreakdownItem[] = [];
+  for (const { data } of itemChunks) items.push(...((data as BreakdownItem[] | null) ?? []));
+  if (items.length === 0) return empty;
 
   // Recorte por categoria (opcional): mantém só itens do produto naquela categoria.
   const scoped = categoryId
@@ -725,25 +728,49 @@ export async function getFinancialData(range?: DashboardRange): Promise<{
   };
   if (!isSupabaseConfigured) return emptyResult;
   const supabase = await createClient();
+  const CHUNK = 300;
 
+  // Passo 1 (paralelo): pedidos do período + custo de TODOS os produtos.
+  // Banco fica longe (~130ms/ida), então buscamos o custo do catálogo inteiro de
+  // uma vez — é pequeno — em vez de uma 2ª ida dependente dos itens.
   let oq = supabase.from("orders").select("id, total, status, created_at");
   if (range) oq = oq.gte("created_at", range.start).lte("created_at", range.end);
-  const { data: ordersData } = await oq;
+  const [{ data: ordersData }, { data: prodCosts }] = await Promise.all([
+    oq,
+    supabase.from("products").select("id, cost_price"),
+  ]);
+
   const orders = (
     (ordersData as { id: string; total: number; status: OrderStatus }[] | null) ?? []
   ).filter((o) => o.status !== "cancelado" && o.status !== "recusado");
   if (orders.length === 0) return emptyResult;
-
   const ids = orders.map((o) => o.id);
-  const CHUNK = 300;
 
-  // Pagamentos por pedido (resiliente: se a tabela ainda não existir, fica vazio).
+  const costById = new Map<string, number>();
+  for (const p of (prodCosts as { id: string; cost_price: number | null }[] | null) ?? []) {
+    costById.set(p.id, Number(p.cost_price) || 0);
+  }
+
+  // Passo 2 (paralelo): pagamentos + itens desses pedidos, em lotes paralelos.
+  // Resiliente: query do supabase-js não lança — em erro (ex.: tabela ausente),
+  // data vem null e vira [].
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += CHUNK) chunks.push(ids.slice(i, i + CHUNK));
+  const [payChunks, itemChunks] = await Promise.all([
+    Promise.all(
+      chunks.map((c) =>
+        supabase.from("order_payments").select("order_id, method, amount").in("order_id", c),
+      ),
+    ),
+    Promise.all(
+      chunks.map((c) =>
+        supabase.from("order_items").select("order_id, product_id, quantity").in("order_id", c),
+      ),
+    ),
+  ]);
+
   const paysByOrder = new Map<string, { method: PaymentMethod; amount: number }[]>();
-  for (let i = 0; i < ids.length; i += CHUNK) {
-    const { data } = await supabase
-      .from("order_payments")
-      .select("order_id, method, amount")
-      .in("order_id", ids.slice(i, i + CHUNK));
+  for (const { data } of payChunks) {
     for (const p of (data as
       | { order_id: string; method: PaymentMethod; amount: number }[]
       | null) ?? []) {
@@ -753,30 +780,14 @@ export async function getFinancialData(range?: DashboardRange): Promise<{
     }
   }
 
-  // Custo por pedido (itens × preço de custo).
-  const items: { order_id: string; product_id: string | null; quantity: number }[] = [];
-  for (let i = 0; i < ids.length; i += CHUNK) {
-    const { data } = await supabase
-      .from("order_items")
-      .select("order_id, product_id, quantity")
-      .in("order_id", ids.slice(i, i + CHUNK));
-    items.push(...((data as typeof items | null) ?? []));
-  }
-  const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))] as string[];
-  const costById = new Map<string, number>();
-  if (productIds.length) {
-    const { data: prods } = await supabase
-      .from("products")
-      .select("id, cost_price")
-      .in("id", productIds);
-    for (const p of (prods as { id: string; cost_price: number | null }[] | null) ?? []) {
-      costById.set(p.id, Number(p.cost_price) || 0);
-    }
-  }
   const costByOrder = new Map<string, number>();
-  for (const it of items) {
-    const c = (it.product_id && costById.get(it.product_id)) || 0;
-    costByOrder.set(it.order_id, (costByOrder.get(it.order_id) ?? 0) + c * it.quantity);
+  for (const { data } of itemChunks) {
+    for (const it of (data as
+      | { order_id: string; product_id: string | null; quantity: number }[]
+      | null) ?? []) {
+      const c = (it.product_id && costById.get(it.product_id)) || 0;
+      costByOrder.set(it.order_id, (costByOrder.get(it.order_id) ?? 0) + c * it.quantity);
+    }
   }
 
   const overall = { geral: empty(), recebido: empty(), aReceber: empty() };
@@ -859,20 +870,24 @@ export async function getOrderReceipts(orderId: string): Promise<OrderReceipt[]>
   const list = (files ?? []).filter((f) => f.name !== ".emptyFolderPlaceholder");
   if (list.length === 0) return [];
 
-  const receipts: OrderReceipt[] = [];
-  for (const f of list) {
-    const { data: signed } = await admin.storage
-      .from("comprovantes")
-      .createSignedUrl(`${orderId}/${f.name}`, 60 * 60);
-    receipts.push({
-      name: f.name,
-      url: signed?.signedUrl ?? "",
-      size: (f.metadata?.size as number | undefined) ?? 0,
-      createdAt: f.created_at ?? "",
-      isPdf: f.name.toLowerCase().endsWith(".pdf"),
-    });
-  }
-  return receipts;
+  // Assina todos os arquivos numa única ida ao Storage (era 1 por arquivo).
+  const { data: signed } = await admin.storage.from("comprovantes").createSignedUrls(
+    list.map((f) => `${orderId}/${f.name}`),
+    60 * 60,
+  );
+  const urlByPath = new Map(
+    ((signed as { path?: string | null; signedUrl: string }[] | null) ?? []).map((s) => [
+      s.path ?? "",
+      s.signedUrl,
+    ]),
+  );
+  return list.map((f) => ({
+    name: f.name,
+    url: urlByPath.get(`${orderId}/${f.name}`) ?? "",
+    size: (f.metadata?.size as number | undefined) ?? 0,
+    createdAt: f.created_at ?? "",
+    isPdf: f.name.toLowerCase().endsWith(".pdf"),
+  }));
 }
 
 /** Pagamentos registrados de um pedido (parciais/total), do mais antigo. */
