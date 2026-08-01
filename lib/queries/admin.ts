@@ -792,6 +792,50 @@ export async function getFinancialData(range?: DashboardRange): Promise<{
   };
 }
 
+/** Um comprovante de pagamento anexado ao pedido (URL assinada temporária). */
+export interface OrderReceipt {
+  name: string;
+  url: string;
+  size: number;
+  createdAt: string;
+  isPdf: boolean;
+}
+
+/**
+ * Comprovantes de pagamento de um pedido (bucket privado `comprovantes`, uma
+ * pasta por pedido). Gera URL assinada (1h) para cada arquivo. Service role
+ * porque o bucket é privado — nunca exposto publicamente.
+ */
+export async function getOrderReceipts(orderId: string): Promise<OrderReceipt[]> {
+  if (!isSupabaseConfigured) return [];
+  let admin: ReturnType<typeof createAdminClient>;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return [];
+  }
+  const { data: files } = await admin.storage
+    .from("comprovantes")
+    .list(orderId, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+  const list = (files ?? []).filter((f) => f.name !== ".emptyFolderPlaceholder");
+  if (list.length === 0) return [];
+
+  const receipts: OrderReceipt[] = [];
+  for (const f of list) {
+    const { data: signed } = await admin.storage
+      .from("comprovantes")
+      .createSignedUrl(`${orderId}/${f.name}`, 60 * 60);
+    receipts.push({
+      name: f.name,
+      url: signed?.signedUrl ?? "",
+      size: (f.metadata?.size as number | undefined) ?? 0,
+      createdAt: f.created_at ?? "",
+      isPdf: f.name.toLowerCase().endsWith(".pdf"),
+    });
+  }
+  return receipts;
+}
+
 export async function getSetting<T = Record<string, unknown>>(key: string): Promise<T | null> {
   if (!isSupabaseConfigured) return null;
   const supabase = await createClient();

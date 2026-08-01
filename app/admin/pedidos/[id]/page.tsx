@@ -1,4 +1,5 @@
 import { OrderActions } from "@/components/admin/order-actions";
+import { OrderReceipts } from "@/components/admin/order-receipts";
 import { PaymentEditor } from "@/components/admin/payment-editor";
 import { OrderRealtime } from "@/components/loja/order-realtime";
 import { OrderStatusBadge } from "@/components/loja/order-status-badge";
@@ -11,7 +12,12 @@ import { notificationEventLabel } from "@/lib/email/defaults";
 import { cardSummary } from "@/lib/orders/card-fees";
 import { formatScheduled } from "@/lib/orders/delivery";
 import { pixMessage, whatsappLink } from "@/lib/orders/template";
-import { getAdminOrder, getMessageTemplate, getSetting } from "@/lib/queries/admin";
+import {
+  getAdminOrder,
+  getMessageTemplate,
+  getOrderReceipts,
+  getSetting,
+} from "@/lib/queries/admin";
 import { formatBRL, formatDateTime } from "@/lib/utils";
 import type { NotificationStatus, PixSettings } from "@/types/db";
 import { ChevronLeft, MessageCircle } from "lucide-react";
@@ -34,10 +40,11 @@ export default async function AdminOrderDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [{ order, logs }, template, pix] = await Promise.all([
+  const [{ order, logs }, template, pix, receipts] = await Promise.all([
     getAdminOrder(id),
     getMessageTemplate("pix"),
     getSetting<PixSettings>("pix"),
+    getOrderReceipts(id),
   ]);
   if (!order) notFound();
 
@@ -184,6 +191,8 @@ export default async function AdminOrderDetail({
           </CardContent>
         </Card>
       </div>
+
+      <OrderReceipts orderId={order.id} receipts={receipts} />
 
       <Card>
         <CardHeader>
