@@ -5,7 +5,10 @@ export const RECEIPT_MAX_BYTES = 3 * 1024 * 1024;
 
 const IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
-export const RECEIPT_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
+// Extensões (não tipos MIME): o diálogo de arquivo do Windows abre mais rápido
+// assim (não precisa resolver MIME → extensão no registro). A validação real
+// continua pelo file.type no prepareReceipt e na action.
+export const RECEIPT_ACCEPT = ".jpg,.jpeg,.png,.webp,.pdf";
 
 /**
  * Prepara o comprovante ANTES do upload (roda no navegador):
