@@ -11,6 +11,7 @@ import type {
   NotificationLog,
   Order,
   OrderItem,
+  OrderPayment,
   OrderStatus,
   OrderWithItems,
   PaymentMethod,
@@ -676,7 +677,7 @@ export async function getOrdersBreakdown(
   };
 }
 
-/** Um bloco financeiro (Geral / Pago / Pendente): pedidos, custo e lucro. */
+/** Um bloco financeiro: pedidos (valor), custo e lucro. */
 export interface FinancialBucket {
   pedidos: number;
   custo: number;
@@ -684,64 +685,76 @@ export interface FinancialBucket {
   count: number;
 }
 
-export interface FinancialSummary {
+export interface FinancialOverall {
+  /** Todos os pedidos (recebido + a receber). */
   geral: FinancialBucket;
-  pago: FinancialBucket;
-  pendente: FinancialBucket;
+  /** Soma dos pagamentos recebidos. */
+  recebido: FinancialBucket;
+  /** Soma dos saldos devedores (a receber). */
+  aReceber: FinancialBucket;
 }
 
-/** Resumo financeiro de uma forma de pagamento. */
+/** Recebido por forma de pagamento (só o recebido tem forma). */
 export interface FinancialByMethod {
   method: PaymentMethod;
   label: string;
-  summary: FinancialSummary;
+  bucket: FinancialBucket;
 }
 
 /**
- * Dados financeiros por situação de pagamento (Pedido Pago / Pagamento
- * Pendente), no geral e por forma de pagamento. Pedidos = soma de `total`;
- * Custo = preço de custo × quantidade dos itens; Lucro = Pedidos − Custo.
- * Cancelados/recusados ficam de fora. Produto sem custo cadastrado conta zero.
+ * Dados financeiros com PAGAMENTOS PARCIAIS. Cada pedido pode ter vários
+ * pagamentos (order_payments). "Recebido" = soma dos pagamentos; "A receber" =
+ * saldo devedor (total − recebido). Custo/Lucro dividem-se proporcionalmente ao
+ * quanto foi recebido de cada pedido. "Recebido por forma" agrupa os pagamentos
+ * pela sua forma; o "A receber" não tem forma (ainda não pago). Cancelados/
+ * recusados ficam de fora; produto sem custo cadastrado conta zero.
  */
 export async function getFinancialData(range?: DashboardRange): Promise<{
-  overall: FinancialSummary;
+  overall: FinancialOverall;
   byMethod: FinancialByMethod[];
 }> {
   const empty = (): FinancialBucket => ({ pedidos: 0, custo: 0, lucro: 0, count: 0 });
-  const blank = (): FinancialSummary => ({ geral: empty(), pago: empty(), pendente: empty() });
   const METHODS: { method: PaymentMethod; label: string }[] = [
-    { method: "cartao", label: "Cartão de crédito" },
     { method: "pix", label: "Pix" },
+    { method: "cartao", label: "Cartão de crédito" },
     { method: "dinheiro", label: "Dinheiro" },
   ];
   const emptyResult = {
-    overall: blank(),
-    byMethod: METHODS.map((m) => ({ ...m, summary: blank() })),
+    overall: { geral: empty(), recebido: empty(), aReceber: empty() },
+    byMethod: METHODS.map((m) => ({ ...m, bucket: empty() })),
   };
   if (!isSupabaseConfigured) return emptyResult;
   const supabase = await createClient();
 
-  let oq = supabase
-    .from("orders")
-    .select("id, total, payment_status, payment_method, status, created_at");
+  let oq = supabase.from("orders").select("id, total, status, created_at");
   if (range) oq = oq.gte("created_at", range.start).lte("created_at", range.end);
   const { data: ordersData } = await oq;
   const orders = (
-    (ordersData as
-      | {
-          id: string;
-          total: number;
-          payment_status: string;
-          payment_method: PaymentMethod;
-          status: OrderStatus;
-        }[]
-      | null) ?? []
+    (ordersData as { id: string; total: number; status: OrderStatus }[] | null) ?? []
   ).filter((o) => o.status !== "cancelado" && o.status !== "recusado");
   if (orders.length === 0) return emptyResult;
 
   const ids = orders.map((o) => o.id);
-  const items: { order_id: string; product_id: string | null; quantity: number }[] = [];
   const CHUNK = 300;
+
+  // Pagamentos por pedido (resiliente: se a tabela ainda não existir, fica vazio).
+  const paysByOrder = new Map<string, { method: PaymentMethod; amount: number }[]>();
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const { data } = await supabase
+      .from("order_payments")
+      .select("order_id, method, amount")
+      .in("order_id", ids.slice(i, i + CHUNK));
+    for (const p of (data as
+      | { order_id: string; method: PaymentMethod; amount: number }[]
+      | null) ?? []) {
+      const arr = paysByOrder.get(p.order_id) ?? [];
+      arr.push({ method: p.method, amount: Number(p.amount) });
+      paysByOrder.set(p.order_id, arr);
+    }
+  }
+
+  // Custo por pedido (itens × preço de custo).
+  const items: { order_id: string; product_id: string | null; quantity: number }[] = [];
   for (let i = 0; i < ids.length; i += CHUNK) {
     const { data } = await supabase
       .from("order_items")
@@ -766,28 +779,54 @@ export async function getFinancialData(range?: DashboardRange): Promise<{
     costByOrder.set(it.order_id, (costByOrder.get(it.order_id) ?? 0) + c * it.quantity);
   }
 
-  const summarize = (list: typeof orders): FinancialSummary => {
-    const r = blank();
-    const add = (b: FinancialBucket, total: number, custo: number) => {
-      b.pedidos += total;
-      b.custo += custo;
-      b.count += 1;
-    };
-    for (const o of list) {
-      const total = Number(o.total);
-      const custo = costByOrder.get(o.id) ?? 0;
-      add(r.geral, total, custo);
-      add(o.payment_status === "pago" ? r.pago : r.pendente, total, custo);
+  const overall = { geral: empty(), recebido: empty(), aReceber: empty() };
+  const byMethodMap = new Map<PaymentMethod, FinancialBucket>(
+    METHODS.map((m) => [m.method, empty()]),
+  );
+
+  for (const o of orders) {
+    const total = Number(o.total);
+    const cost = costByOrder.get(o.id) ?? 0;
+    const pays = paysByOrder.get(o.id) ?? [];
+    const paid = Math.min(
+      total,
+      pays.reduce((s, p) => s + p.amount, 0),
+    );
+    const saldo = Math.max(0, total - paid);
+    const paidRatio = total > 0 ? paid / total : 0;
+
+    overall.geral.pedidos += total;
+    overall.geral.custo += cost;
+    overall.geral.count += 1;
+
+    if (paid > 0) {
+      overall.recebido.pedidos += paid;
+      overall.recebido.custo += cost * paidRatio;
+      overall.recebido.count += 1;
     }
-    for (const b of [r.geral, r.pago, r.pendente]) b.lucro = b.pedidos - b.custo;
-    return r;
-  };
+    if (saldo > 0) {
+      overall.aReceber.pedidos += saldo;
+      overall.aReceber.custo += cost * (1 - paidRatio);
+      overall.aReceber.count += 1;
+    }
+    for (const p of pays) {
+      const b = byMethodMap.get(p.method);
+      if (!b) continue;
+      b.pedidos += p.amount;
+      b.custo += total > 0 ? cost * (Math.min(p.amount, total) / total) : 0;
+      b.count += 1;
+    }
+  }
+
+  for (const b of [overall.geral, overall.recebido, overall.aReceber, ...byMethodMap.values()]) {
+    b.lucro = b.pedidos - b.custo;
+  }
 
   return {
-    overall: summarize(orders),
+    overall,
     byMethod: METHODS.map((m) => ({
       ...m,
-      summary: summarize(orders.filter((o) => o.payment_method === m.method)),
+      bucket: byMethodMap.get(m.method) ?? empty(),
     })),
   };
 }
@@ -834,6 +873,18 @@ export async function getOrderReceipts(orderId: string): Promise<OrderReceipt[]>
     });
   }
   return receipts;
+}
+
+/** Pagamentos registrados de um pedido (parciais/total), do mais antigo. */
+export async function getOrderPayments(orderId: string): Promise<OrderPayment[]> {
+  if (!isSupabaseConfigured) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("order_payments")
+    .select("*")
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: true });
+  return (data as OrderPayment[] | null) ?? [];
 }
 
 export async function getSetting<T = Record<string, unknown>>(key: string): Promise<T | null> {

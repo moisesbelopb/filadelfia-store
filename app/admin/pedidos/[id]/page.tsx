@@ -1,4 +1,5 @@
 import { OrderActions } from "@/components/admin/order-actions";
+import { OrderPayments } from "@/components/admin/order-payments";
 import { OrderReceipts } from "@/components/admin/order-receipts";
 import { PaymentEditor } from "@/components/admin/payment-editor";
 import { OrderRealtime } from "@/components/loja/order-realtime";
@@ -15,6 +16,7 @@ import { pixMessage, whatsappLink } from "@/lib/orders/template";
 import {
   getAdminOrder,
   getMessageTemplate,
+  getOrderPayments,
   getOrderReceipts,
   getSetting,
 } from "@/lib/queries/admin";
@@ -40,11 +42,12 @@ export default async function AdminOrderDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [{ order, logs }, template, pix, receipts] = await Promise.all([
+  const [{ order, logs }, template, pix, receipts, payments] = await Promise.all([
     getAdminOrder(id),
     getMessageTemplate("pix"),
     getSetting<PixSettings>("pix"),
     getOrderReceipts(id),
+    getOrderPayments(id),
   ]);
   if (!order) notFound();
 
@@ -95,7 +98,6 @@ export default async function AdminOrderDetail({
           <OrderActions
             orderId={order.id}
             status={order.status}
-            paymentStatus={order.payment_status}
             fulfillmentType={order.fulfillment_type}
           />
           {order.status_reason && (
@@ -191,6 +193,8 @@ export default async function AdminOrderDetail({
           </CardContent>
         </Card>
       </div>
+
+      <OrderPayments orderId={order.id} total={order.total} payments={payments} />
 
       <OrderReceipts orderId={order.id} receipts={receipts} />
 

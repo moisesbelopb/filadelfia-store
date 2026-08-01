@@ -156,6 +156,17 @@ export interface OrderItem {
   created_at: string;
 }
 
+/** Um pagamento registrado num pedido (parcial ou total). */
+export interface OrderPayment {
+  id: string;
+  order_id: string;
+  amount: number;
+  method: PaymentMethod;
+  card_brand?: "visa" | "master" | "outros" | null;
+  card_installments?: number | null;
+  created_at: string;
+}
+
 export interface OrderStatusHistory {
   id: string;
   order_id: string;

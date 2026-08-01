@@ -5,7 +5,7 @@ import { resolvePeriod } from "@/lib/dashboard-period";
 import {
   type FinancialBucket,
   type FinancialByMethod,
-  type FinancialSummary,
+  type FinancialOverall,
   getDashboardData,
   getFinancialData,
 } from "@/lib/queries/admin";
@@ -57,9 +57,9 @@ export default async function AdminDashboard({
 
       <PeriodFilter basePath="/admin" active={range.period} from={range.from} to={range.to} />
 
-      <FinancialCards fin={fin.overall} />
+      <FinancialCards overall={fin.overall} />
 
-      <PaymentMethodSections byMethod={fin.byMethod} />
+      <ReceivedByMethod byMethod={fin.byMethod} />
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         <Stat
@@ -352,42 +352,42 @@ function StockCount({
   );
 }
 
-/** Três cards financeiros por situação de pagamento: Pedidos, Custo e Lucro. */
-function FinancialCards({ fin }: { fin: FinancialSummary }) {
+/** Três cards financeiros: Geral, Recebido e A receber (Pedidos, Custo e Lucro). */
+function FinancialCards({ overall }: { overall: FinancialOverall }) {
   return (
     <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
-      <FinCard title="Geral" sub="pago + pendente" bucket={fin.geral} tone="neutral" />
-      <FinCard title="Recebido" sub="pedidos pagos" bucket={fin.pago} tone="success" />
-      <FinCard title="A receber" sub="pagamento pendente" bucket={fin.pendente} tone="warning" />
+      <FinCard title="Geral" sub="recebido + a receber" bucket={overall.geral} tone="neutral" />
+      <FinCard
+        title="Recebido"
+        sub="pagamentos recebidos"
+        bucket={overall.recebido}
+        tone="success"
+      />
+      <FinCard title="A receber" sub="saldo devedor" bucket={overall.aReceber} tone="warning" />
     </div>
   );
 }
 
-/** Mesmo detalhe financeiro (Geral/Recebido/A receber), separado por forma de pagamento. */
-function PaymentMethodSections({ byMethod }: { byMethod: FinancialByMethod[] }) {
+/** Recebido separado por forma de pagamento (só o recebido tem forma). */
+function ReceivedByMethod({ byMethod }: { byMethod: FinancialByMethod[] }) {
   return (
-    <div className="flex flex-col gap-5">
-      {byMethod.map((m) => (
-        <div key={m.method} className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold">{m.label}</span>
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {m.summary.geral.count} {m.summary.geral.count === 1 ? "pedido" : "pedidos"}
-            </span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-          <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
-            <FinCard title="Geral" sub="pago + pendente" bucket={m.summary.geral} tone="neutral" />
-            <FinCard title="Recebido" sub="pedidos pagos" bucket={m.summary.pago} tone="success" />
-            <FinCard
-              title="A receber"
-              sub="pagamento pendente"
-              bucket={m.summary.pendente}
-              tone="warning"
-            />
-          </div>
-        </div>
-      ))}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-semibold">Recebido por forma de pagamento</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
+        {byMethod.map((m) => (
+          <FinCard
+            key={m.method}
+            title={m.label}
+            sub="recebido"
+            unit="pagamento"
+            bucket={m.bucket}
+            tone="success"
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -397,11 +397,13 @@ function FinCard({
   sub,
   bucket,
   tone,
+  unit = "pedido",
 }: {
   title: string;
   sub: string;
   bucket: FinancialBucket;
   tone: "neutral" | "success" | "warning";
+  unit?: string;
 }) {
   const dot =
     tone === "success" ? "bg-success" : tone === "warning" ? "bg-warning" : "bg-foreground";
@@ -419,7 +421,7 @@ function FinCard({
             </span>
           </div>
           <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-            {bucket.count} {bucket.count === 1 ? "pedido" : "pedidos"}
+            {bucket.count} {bucket.count === 1 ? unit : `${unit}s`}
           </span>
         </div>
         <div className="flex flex-col">

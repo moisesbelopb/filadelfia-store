@@ -1,6 +1,6 @@
 "use client";
 
-import { changeOrderStatus, markOrderPaid, notifyStatusWhatsapp } from "@/actions/admin/orders";
+import { changeOrderStatus, notifyStatusWhatsapp } from "@/actions/admin/orders";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { emailEventForStatus, notificationEventLabel } from "@/lib/email/defaults";
 import { REASON_REQUIRED, nextStatuses } from "@/lib/orders/fsm";
 import { toast } from "@/lib/use-toast";
-import type { FulfillmentType, OrderStatus, PaymentStatus } from "@/types/db";
+import type { FulfillmentType, OrderStatus } from "@/types/db";
 import { MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -46,12 +46,10 @@ function eventForStatus(status: OrderStatus, fulfillment: FulfillmentType) {
 export function OrderActions({
   orderId,
   status,
-  paymentStatus,
   fulfillmentType,
 }: {
   orderId: string;
   status: OrderStatus;
-  paymentStatus: PaymentStatus;
   fulfillmentType: FulfillmentType;
 }) {
   const router = useRouter();
@@ -86,18 +84,6 @@ export function OrderActions({
       return;
     }
     apply(to);
-  }
-
-  function paid() {
-    startTransition(async () => {
-      const res = await markOrderPaid(orderId);
-      if (!res.ok) {
-        toast({ variant: "error", title: "Erro", description: res.error });
-        return;
-      }
-      toast({ variant: "success", title: "Pagamento confirmado" });
-      router.refresh();
-    });
   }
 
   function sendWhatsapp() {
@@ -143,14 +129,6 @@ export function OrderActions({
           </Button>
         );
       })}
-
-      {paymentStatus === "pendente" &&
-        status !== "solicitado" &&
-        !["recusado", "cancelado"].includes(status) && (
-          <Button variant="success" disabled={pending} onClick={paid}>
-            Marcar como pago
-          </Button>
-        )}
 
       {/* Aviso de status pelo WhatsApp, disponível a qualquer momento. */}
       <Button variant="outline" disabled={pending} onClick={() => setWhatsappFor(status)}>

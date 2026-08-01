@@ -26,6 +26,21 @@ export const paymentEditSchema = z
   });
 export type PaymentEditInput = z.infer<typeof paymentEditSchema>;
 
+/** Registro de um pagamento (parcial ou total) no pedido. */
+export const orderPaymentSchema = z
+  .object({
+    orderId: z.string().uuid(),
+    amount: z.coerce.number().positive("Informe um valor maior que zero"),
+    method: z.enum(["pix", "dinheiro", "cartao"]),
+    cardInstallments: z.coerce.number().int().min(1).max(6).nullable().optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (d.method === "cartao" && !d.cardInstallments) {
+      ctx.addIssue({ code: "custom", path: ["cardInstallments"], message: "Escolha as parcelas" });
+    }
+  });
+export type OrderPaymentInput = z.infer<typeof orderPaymentSchema>;
+
 export const productSchema = z.object({
   name: z.string().min(2, "Informe o nome"),
   categoryId: z.preprocess(
