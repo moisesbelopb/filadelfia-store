@@ -4,6 +4,7 @@ import { resolvePostLoginPath } from "@/lib/auth";
 import { SITE_URL, isSupabaseConfigured } from "@/lib/env";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { isValidPhone, maskPhone, safeRedirectPath, titleCaseName } from "@/lib/utils";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -149,11 +150,22 @@ export async function googleSignInAction(formData: FormData): Promise<void> {
     redirect(`/login?authError=config&redirect=${encodeURIComponent(next)}`);
   }
 
+  // O verificador PKCE do OAuth é gravado num cookie do domínio onde o login
+  // COMEÇA. Se o callback voltar para outro domínio (ex.: SITE_URL fixo em
+  // vercel.app enquanto o cliente navega no domínio próprio), o cookie não é
+  // enviado e a troca do código falha ("authError=oauth"). Por isso o callback
+  // volta ao mesmo host da requisição; SITE_URL fica só de fallback. O host
+  // ainda precisa estar na allow-list de Redirect URLs do Supabase.
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const origin = host ? `${proto}://${host}` : SITE_URL;
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${SITE_URL}/api/auth/callback?next=${encodeURIComponent(next)}`,
+      redirectTo: `${origin}/api/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
 
