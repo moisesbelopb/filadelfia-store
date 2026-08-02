@@ -2,6 +2,7 @@
 
 import { type ActionResult, fail, ok } from "@/lib/action-result";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
+import { type CartReminderItem, renderCartReminderEmail } from "@/lib/email/cart-reminder";
 import { REASON_EVENTS } from "@/lib/email/defaults";
 import { sendEmail } from "@/lib/email/send";
 import { type OrderEmailEvent, renderOrderEmail } from "@/lib/email/templates";
@@ -82,10 +83,29 @@ export async function sendTestEmail(input: unknown): Promise<ActionResult<string
     supabase.from("settings").select("value").eq("key", "pix").maybeSingle(),
   ]);
 
-  const order = demoOrder(event, user.user_metadata?.full_name ?? "Maria");
+  const templates = (emailSetting?.value ?? null) as Partial<EmailSettings> | null;
+  const customerName = user.user_metadata?.full_name ?? "Maria";
+
+  // Carrinho abandonado não é um pedido: renderiza com itens de exemplo.
+  if (event === "cart_abandoned") {
+    const demoItems: CartReminderItem[] = [
+      { name: "Camiseta Casa de Filadélfia", size: "M", quantity: 1, lineTotal: 60 },
+      { name: "Caneca Fé, Esperança e Amor", size: null, quantity: 1, lineTotal: 45 },
+    ];
+    const { subject, html } = renderCartReminderEmail(
+      customerName,
+      demoItems,
+      105,
+      templates?.cart_abandoned,
+    );
+    const result = await sendEmail({ to, subject: `[TESTE] ${subject}`, html });
+    return result.ok ? ok(to) : fail(result.error ?? "Falha no envio do e-mail.");
+  }
+
+  const order = demoOrder(event, customerName);
   const { subject, html } = renderOrderEmail(event, order, {
     pix: (pixSetting?.value ?? null) as PixSettings | null,
-    templates: (emailSetting?.value ?? null) as Partial<EmailSettings> | null,
+    templates,
   });
 
   const result = await sendEmail({ to, subject: `[TESTE] ${subject}`, html });

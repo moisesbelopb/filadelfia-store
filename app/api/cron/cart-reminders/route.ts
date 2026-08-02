@@ -1,6 +1,7 @@
 import { type CartReminderItem, renderCartReminderEmail } from "@/lib/email/cart-reminder";
 import { sendEmail } from "@/lib/email/send";
 import { createAdminClient, createServiceClient } from "@/lib/supabase/server";
+import type { EmailTemplate } from "@/types/db";
 import { NextResponse } from "next/server";
 
 // nodemailer precisa do runtime Node (não Edge). Envio pode levar alguns segundos.
@@ -74,6 +75,16 @@ async function handle(request: Request): Promise<Response> {
     subtotal.set(it.cart_id, (subtotal.get(it.cart_id) ?? 0) + line);
   }
 
+  // Modelo do e-mail (assunto/título/mensagem) editável no admin (key='email').
+  const { data: emailSetting } = await service
+    .from("settings")
+    .select("value")
+    .eq("key", "email")
+    .maybeSingle();
+  const cartTemplate =
+    (emailSetting?.value as { cart_abandoned?: Partial<EmailTemplate> } | null)?.cart_abandoned ??
+    null;
+
   let sent = 0;
   for (const cart of carts) {
     const items = byCart.get(cart.id);
@@ -87,7 +98,12 @@ async function handle(request: Request): Promise<Response> {
     const name =
       (user.user_metadata?.full_name as string | undefined) || email.split("@")[0] || "cliente";
 
-    const { subject, html } = renderCartReminderEmail(name, items, subtotal.get(cart.id) ?? 0);
+    const { subject, html } = renderCartReminderEmail(
+      name,
+      items,
+      subtotal.get(cart.id) ?? 0,
+      cartTemplate,
+    );
     const result = await sendEmail({ to: email, toName: name, subject, html });
     if (result.ok) {
       await service

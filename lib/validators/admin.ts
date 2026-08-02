@@ -134,6 +134,7 @@ export const emailSettingsSchema = z.object({
   order_delivered: emailTemplateSchema,
   order_rejected: emailTemplateSchema,
   order_canceled: emailTemplateSchema,
+  cart_abandoned: emailTemplateSchema,
 });
 
 /** Chaves aceitas no envio de e-mail de teste (espelha EmailSettings). */
@@ -146,6 +147,7 @@ export const emailEventSchema = z.enum([
   "order_delivered",
   "order_rejected",
   "order_canceled",
+  "cart_abandoned",
 ]);
 
 export const templateSchema = z.object({

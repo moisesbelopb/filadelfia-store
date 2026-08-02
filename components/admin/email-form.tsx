@@ -28,6 +28,7 @@ import {
   PackageSearch,
   RotateCcw,
   Send,
+  ShoppingCart,
   Store,
   Truck,
 } from "lucide-react";
@@ -43,6 +44,7 @@ const META: Record<OrderEmailEvent, { icon: LucideIcon; tone: string }> = {
   order_delivered: { icon: PackageCheck, tone: "text-success" },
   order_rejected: { icon: CircleX, tone: "text-destructive" },
   order_canceled: { icon: Ban, tone: "text-muted-foreground" },
+  cart_abandoned: { icon: ShoppingCart, tone: "text-foreground" },
 };
 
 /** Dados de exemplo só para a prévia do assunto. */
@@ -172,10 +174,15 @@ export function EmailForm({ email }: { email: EmailSettings | null }) {
               Variáveis:{" "}
               <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[0.7rem]">
                 {"{{cliente}}"}
-              </code>{" "}
-              <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[0.7rem]">
-                {"{{pedido}}"}
               </code>
+              {selected !== "cart_abandoned" && (
+                <>
+                  {" "}
+                  <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[0.7rem]">
+                    {"{{pedido}}"}
+                  </code>
+                </>
+              )}
               {REASON_EVENTS.includes(selected) && (
                 <>
                   {" "}
@@ -187,6 +194,8 @@ export function EmailForm({ email }: { email: EmailSettings | null }) {
               )}
               {selected === "order_accepted" &&
                 " · Pedidos Pix ganham a chave e o botão de comprovante automaticamente."}
+              {selected === "cart_abandoned" &&
+                " · Os itens do carrinho e o subtotal entram automaticamente."}
             </p>
           </CardContent>
         </Card>
@@ -196,7 +205,7 @@ export function EmailForm({ email }: { email: EmailSettings | null }) {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 shadow-sm">
         <p className="text-xs text-muted-foreground">
           Salvar aplica a todos os e-mails. O teste envia o modelo <strong>já salvo</strong> de "
-          {active.label}", com um pedido fictício, para o seu e-mail.
+          {active.label}", com dados de exemplo, para o seu e-mail.
         </p>
         <div className="flex items-center gap-2">
           <Button

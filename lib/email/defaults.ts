@@ -53,6 +53,12 @@ export const EMAIL_EVENTS = [
     short: "Ao cancelar o pedido",
     desc: "Enviado quando o pedido é cancelado. O motivo informado entra no e-mail.",
   },
+  {
+    key: "cart_abandoned",
+    label: "Carrinho abandonado",
+    short: "Lembrete após ~30 min",
+    desc: "Enviado ao cliente logado que deixou itens no carrinho e não finalizou o pedido em ~30 minutos. O carrinho e o subtotal entram automaticamente.",
+  },
 ] as const satisfies readonly {
   key: OrderEmailEvent;
   label: string;
@@ -153,5 +159,11 @@ export const DEFAULT_EMAILS: EmailSettings = {
     heading: "Pedido cancelado",
     intro:
       "Seu pedido foi cancelado. Se não era isso que você esperava ou quiser refazer a compra, é só falar com a gente.",
+  },
+  cart_abandoned: {
+    subject: "{{cliente}}, seus itens ainda estão te esperando",
+    heading: "Você esqueceu algo especial",
+    intro:
+      "Você escolheu alguns itens aqui na Casa de Filadélfia, mas ainda não concluiu o pedido. Ficou tudo guardado no seu carrinho — é só finalizar quando quiser.",
   },
 };

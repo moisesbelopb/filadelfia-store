@@ -235,6 +235,8 @@ export interface EmailSettings {
   order_delivered: EmailTemplate;
   order_rejected: EmailTemplate;
   order_canceled: EmailTemplate;
+  /** Lembrete de carrinho abandonado (não é um status de pedido). */
+  cart_abandoned: EmailTemplate;
 }
 
 /** Modo de recebimento do pedido. */

@@ -20,6 +20,7 @@ const ACCENT: Record<OrderEmailEvent, string> = {
   order_delivered: "#1a7f4b",
   order_rejected: "#8f3a2f",
   order_canceled: "#8f3a2f",
+  cart_abandoned: "#a9772b",
 };
 
 /** Escapa texto vindo do usuário/admin antes de interpolar no HTML. */

@@ -1,5 +1,8 @@
+import { DEFAULT_EMAILS } from "@/lib/email/defaults";
 import { SITE_URL } from "@/lib/env";
+import { renderTemplate } from "@/lib/orders/template";
 import { formatBRL } from "@/lib/utils";
+import type { EmailTemplate } from "@/types/db";
 
 const BRAND = "Casa de Filadélfia";
 const ACCENT = "#a9772b";
@@ -27,9 +30,16 @@ export function renderCartReminderEmail(
   customerName: string,
   items: CartReminderItem[],
   subtotal: number,
+  template?: Partial<EmailTemplate> | null,
 ): { subject: string; html: string } {
   const firstName = customerName.trim().split(/\s+/)[0] || "cliente";
-  const subject = `${firstName}, seus itens ainda estão te esperando`;
+  // Textos vêm do modelo salvo no admin (fallback nos padrões). {{cliente}} usa
+  // o primeiro nome para um tom mais próximo no assunto e na saudação.
+  const t = { ...DEFAULT_EMAILS.cart_abandoned, ...(template ?? {}) };
+  const vars = { cliente: firstName, pedido: "", motivo: "" };
+  const subject = renderTemplate(t.subject, vars);
+  const heading = renderTemplate(t.heading, vars);
+  const intro = renderTemplate(t.intro, vars);
   const cartUrl = `${SITE_URL}/carrinho`;
   const logoUrl = `${SITE_URL}/logo.png`;
 
@@ -65,9 +75,9 @@ export function renderCartReminderEmail(
 
         <tr><td style="background:#ffffff;padding:32px;">
           <p style="margin:0 0 6px;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:${ACCENT};font-weight:700;">Seu carrinho está reservado</p>
-          <h1 style="margin:0 0 16px;font-size:21px;letter-spacing:0.01em;color:#141414;text-transform:uppercase;">Você esqueceu algo especial</h1>
+          <h1 style="margin:0 0 16px;font-size:21px;letter-spacing:0.01em;color:#141414;text-transform:uppercase;">${esc(heading)}</h1>
           <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#3f3d38;">
-            Olá, ${esc(firstName)}. Você escolheu alguns itens aqui na ${BRAND}, mas ainda não concluiu o pedido. Ficou tudo guardado no seu carrinho — é só finalizar quando quiser.
+            Olá, ${esc(firstName)}. ${esc(intro)}
           </p>
 
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 16px;">
