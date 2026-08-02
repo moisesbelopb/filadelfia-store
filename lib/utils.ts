@@ -99,11 +99,13 @@ export function safeRedirectPath(path: string | null | undefined, fallback = "/"
   return path;
 }
 
-/** Formata data/hora curta em pt-BR. */
+/** Formata data/hora curta em pt-BR, no fuso de São Paulo (evita mostrar UTC
+ * quando renderiza no servidor da Vercel, que roda em UTC). */
 export function formatDateTime(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
   }).format(d);
 }
