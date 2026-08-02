@@ -1,7 +1,10 @@
 import "server-only";
 
 import { AUDIT_RETENTION_DAYS } from "@/lib/audit";
+import { notificationEventLabel } from "@/lib/email/defaults";
+import { PAYMENT_NAME } from "@/lib/orders/fsm";
 import { createServiceClient } from "@/lib/supabase/server";
+import { formatBRL } from "@/lib/utils";
 
 export interface AuditEntry {
   id: string;
@@ -19,6 +22,7 @@ const SETTINGS_LABELS: Record<string, string> = {
   store: "Loja",
   whatsapp: "WhatsApp / Comunicação",
   email: "E-mail",
+  email_sender: "Conta de envio de e-mail",
   pwa: "PWA",
 };
 
@@ -39,6 +43,8 @@ function describe(
       return `Desativou o usuário${t || (meta?.email ? ` ${String(meta.email)}` : "")}`;
     case "user.activate":
       return `Reativou o usuário${t || (meta?.email ? ` ${String(meta.email)}` : "")}`;
+    case "user.promote":
+      return `Tornou${t || (meta?.email ? ` ${String(meta.email)}` : " um usuário")} administrador do painel`;
     case "user.delete": {
       const quem = meta?.role === "cliente" ? "cliente" : "usuário";
       const alvo = String(meta?.name || meta?.email || "removido");
@@ -54,6 +60,8 @@ function describe(
       return `Atualizou variantes/estoque do produto${t}`;
     case "product.image.hover":
       return `Definiu a imagem de destaque do produto${t}`;
+    case "product.image.reorder":
+      return `Reordenou as fotos do produto${t}`;
     case "product.delete":
       return `Excluiu o produto ${String(meta?.name ?? "")}`.trim();
     case "stock.adjust":
@@ -80,6 +88,32 @@ function describe(
       return `Cancelou o pedido${t}${reason}`;
     case "order.paid":
       return `Confirmou o pagamento do pedido${t}`;
+    case "order.payment.add": {
+      const valor = formatBRL(Number(meta?.amount ?? 0));
+      const forma = PAYMENT_NAME[meta?.method as keyof typeof PAYMENT_NAME];
+      return `Registrou um pagamento de ${valor}${forma ? ` (${forma})` : ""} no pedido${t}`;
+    }
+    case "order.payment.remove":
+      return `Removeu um pagamento do pedido${t}`;
+    case "order.payment": {
+      const forma =
+        PAYMENT_NAME[meta?.paymentMethod as keyof typeof PAYMENT_NAME] ??
+        String(meta?.paymentMethod ?? "");
+      const parcelas = meta?.cardInstallments ? ` em ${Number(meta.cardInstallments)}x` : "";
+      return `Ajustou a forma de pagamento do pedido${t} para ${forma}${parcelas}`;
+    }
+    case "order.receipt.add":
+      return `Anexou o comprovante de pagamento ao pedido${t}`;
+    case "order.receipt.remove":
+      return `Removeu o comprovante de pagamento do pedido${t}`;
+    case "order.notify_whatsapp":
+      return `Enviou pelo WhatsApp o aviso "${notificationEventLabel(
+        meta?.event as string | undefined,
+      )}" do pedido${t}`;
+    case "account.password_change":
+      return "Alterou a própria senha de acesso";
+    case "account.email_change":
+      return "Alterou o próprio e-mail de acesso";
   }
   if (action.startsWith("settings.")) {
     const key = action.slice("settings.".length);
