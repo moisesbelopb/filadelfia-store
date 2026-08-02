@@ -113,18 +113,23 @@ use **Enviar teste**.
 > Evolution em um servidor com HTTPS e ajuste `EVOLUTION_API_BASE_URL`.
 > Detalhe do corpo do `sendText` isolado em `lib/evolution/client.ts`.
 
-## 5. ZeptoMail / Zoho (e-mails do pedido)
+## 5. E-mails do pedido (conta de envio ou ZeptoMail)
 
 E-mails transacionais são enviados ao **cliente** em cada etapa do pedido:
 recebido (checkout), confirmado, em separação, pronto para retirada **ou** saiu
 para entrega (conforme `fulfillment_type`), entregue, recusado e cancelado.
-Usa a Email API do [ZeptoMail](https://www.zoho.com/zeptomail/) via `fetch` —
-sem dependências extras. O destinatário vem do cadastro (Auth); o checkout não
-coleta e-mail.
+O destinatário vem do cadastro (Auth); o checkout não coleta e-mail.
 
 Mapa status → e-mail: `emailEventForStatus()` em `lib/email/defaults.ts`.
 Disparo: `actions/orders.ts` (criação) e `actions/admin/orders.ts` (transições).
-Textos editáveis em **/admin/configuracoes/whatsapp → Comunicação**.
+Modelos editáveis em **/admin/email → Modelos de e-mail**.
+
+**Quem envia:** `sendEmail()` (`lib/email/send.ts`) decide a cada envio — se
+houver uma **conta de envio** salva no admin, sai pelo SMTP do Gmail
+(`lib/email/gmail.ts`); sem ela, cai na Email API do
+[ZeptoMail](https://www.zoho.com/zeptomail/) via `fetch`, configurada por
+variáveis de ambiente. As seções **5.1–5.3** cobrem o ZeptoMail (o fallback) e a
+**5.4**, a conta própria — basta um dos dois estar configurado.
 
 ### 5.1 Verificar o domínio no ZeptoMail
 
@@ -168,18 +173,38 @@ Produção: repita as mesmas variáveis na **Vercel** (*Settings → Environment
 Variables*, ambiente **Production**) e **refaça o deploy** — variável nova só
 vale no próximo build.
 
-### 5.4 Testar
+### 5.4 Conta de envio própria (Gmail SMTP)
 
-Em **/admin/configuracoes/whatsapp → Comunicação**, escolha um modelo e clique em
+Alternativa ao ZeptoMail, configurada pelo painel — sem variáveis de ambiente e
+sem verificar domínio. Em **/admin/email → Conta de envio (Gmail SMTP)**:
+
+1. Na Conta Google, ative a **verificação em 2 etapas** e gere uma
+   [Senha de app](https://myaccount.google.com/apppasswords) (16 caracteres).
+2. Informe a **conta @gmail.com**, cole a senha de app e escolha a **porta**:
+   `465` (SSL) ou `587` (TLS). O servidor é sempre `smtp.gmail.com`.
+3. **Salvar conta de envio** → **Enviar e-mail de teste para mim**.
+
+A senha fica **cifrada** (AES-256-GCM com chave derivada da
+`SUPABASE_SERVICE_ROLE_KEY`, `lib/crypto.ts`) na tabela `settings`
+(`key = 'email_sender'`) e nunca é exibida de volta. Deixar a conta em branco
+desativa e volta ao ZeptoMail.
+
+> ⚠️ O Gmail força o remetente para a conta autenticada — não dá para enviar de
+> outro endereço. Limite de ~500 e-mails/dia numa conta gratuita.
+
+### 5.5 Testar
+
+Em **/admin/email → Modelos de e-mail**, escolha um modelo e clique em
 **Enviar teste para mim**: o e-mail sai com um pedido fictício para o endereço do
-admin logado (`actions/admin/email.ts`). Erro do ZeptoMail (token inválido,
-remetente não verificado…) aparece no toast.
+admin logado (`actions/admin/email.ts`). Erro do provedor (token inválido,
+remetente não verificado, senha de app errada…) aparece no toast.
 
-Sem as variáveis, o envio é silenciosamente ignorado (o pedido nunca falha por
-causa do e-mail). Cada envio real fica registrado em `notification_logs`
-(`channel = 'email'`). Templates: `lib/email/templates.ts`.
+Sem conta de envio **e** sem as variáveis do ZeptoMail, o envio é silenciosamente
+ignorado (o pedido nunca falha por causa do e-mail). Cada envio real fica
+registrado em `notification_logs` (`channel = 'email'`).
+Templates: `lib/email/templates.ts`.
 
-## 5.1 Critérios das imagens de produto
+## 6. Critérios das imagens de produto
 
 Para as fotos não pesarem no Storage nem deixarem a vitrine lenta, o upload
 segue critérios fixos (fonte: `lib/image/criteria.ts`):
@@ -203,7 +228,7 @@ navegador **converte para WebP e reduz para 1600px** antes de enviar
 Recomendação de foto: nítida, iluminada, de preferência **em pé (4:5)** — o
 storefront recorta para preencher, então retrato rende melhor.
 
-## 6. Deploy na Vercel + domínio (Registro.br)
+## 7. Deploy na Vercel + domínio (Registro.br)
 
 1. Importe o repositório na [Vercel](https://vercel.com).
 2. Configure as **Environment Variables** (as mesmas do `.env.local`), com
