@@ -1,4 +1,5 @@
 import { BottomNav } from "@/components/loja/bottom-nav";
+import { CartSync } from "@/components/loja/cart-sync";
 import { SiteFooter } from "@/components/loja/site-footer";
 import { SiteHeader } from "@/components/loja/site-header";
 import { VisitTracker } from "@/components/loja/visit-tracker";
@@ -28,6 +29,7 @@ export default async function LojaLayout({
 
       <BottomNav />
       <VisitTracker />
+      <CartSync />
     </div>
   );
 }

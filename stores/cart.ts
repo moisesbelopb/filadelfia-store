@@ -25,6 +25,8 @@ interface CartState {
   setQty: (variantId: string, qty: number) => void;
   remove: (variantId: string) => void;
   clear: () => void;
+  /** Substitui o carrinho inteiro — usado ao hidratar do servidor no login. */
+  replace: (items: CartLine[]) => void;
 }
 
 /**
@@ -62,6 +64,7 @@ export const useCart = create<CartState>()(
       remove: (variantId) =>
         set((s) => ({ items: s.items.filter((i) => i.variantId !== variantId) })),
       clear: () => set({ items: [] }),
+      replace: (items) => set({ items }),
     }),
     { name: "filadelfia-cart", version: 2 },
   ),

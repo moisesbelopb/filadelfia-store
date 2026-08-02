@@ -39,6 +39,10 @@ export async function sendViaGmail(
     port: sender.port,
     secure: sender.port === 465,
     auth: { user: sender.account, pass },
+    // Falha rápido se o SMTP travar (não segura o lote do cron).
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   });
 
   try {
