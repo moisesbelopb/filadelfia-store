@@ -1,9 +1,8 @@
 import "server-only";
 
 import { type ActionResult, fail, ok } from "@/lib/action-result";
+import { sendEmail } from "@/lib/email/send";
 import { type OrderEmailEvent, renderOrderEmail } from "@/lib/email/templates";
-import { sendEmail } from "@/lib/email/zeptomail";
-import { isZeptomailConfigured } from "@/lib/env";
 import { createAdminClient, createServiceClient } from "@/lib/supabase/server";
 import type { EmailSettings, OrderWithItems, PixSettings } from "@/types/db";
 
@@ -17,8 +16,6 @@ export async function dispatchOrderEmail(
   orderId: string,
   event: OrderEmailEvent,
 ): Promise<ActionResult> {
-  if (!isZeptomailConfigured) return fail("ZeptoMail não configurado.");
-
   let service: ReturnType<typeof createServiceClient>;
   let admin: ReturnType<typeof createAdminClient>;
   try {

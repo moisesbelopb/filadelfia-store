@@ -7,6 +7,24 @@ export const orderStatusSchema = z.object({
 });
 export type OrderStatusInput = z.infer<typeof orderStatusSchema>;
 
+/** Conta de envio de e-mail (Gmail SMTP). `account` vazio = desativar (volta ao
+ * remetente padrão). `appPassword` vazio = manter a senha já salva. */
+export const emailSenderSchema = z.object({
+  account: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim().toLowerCase() : v),
+    z.union([z.literal(""), z.string().email("E-mail inválido")]),
+  ),
+  appPassword: z.preprocess(
+    (v) => (typeof v === "string" ? v.replace(/\s+/g, "") : v),
+    z.string().max(200),
+  ),
+  port: z.coerce
+    .number()
+    .int()
+    .refine((p) => p === 465 || p === 587, "Porta deve ser 465 ou 587"),
+});
+export type EmailSenderInput = z.infer<typeof emailSenderSchema>;
+
 /** Edição da forma de pagamento pelo admin (corrigir o que foi realmente pago). */
 export const paymentEditSchema = z
   .object({

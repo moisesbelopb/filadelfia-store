@@ -3,9 +3,9 @@
 import { type ActionResult, fail, ok } from "@/lib/action-result";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { REASON_EVENTS } from "@/lib/email/defaults";
+import { sendEmail } from "@/lib/email/send";
 import { type OrderEmailEvent, renderOrderEmail } from "@/lib/email/templates";
-import { sendEmail } from "@/lib/email/zeptomail";
-import { isSupabaseConfigured, isZeptomailConfigured } from "@/lib/env";
+import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { emailEventSchema } from "@/lib/validators/admin";
 import type { EmailSettings, OrderWithItems, PixSettings } from "@/types/db";
@@ -67,9 +67,6 @@ function demoOrder(event: OrderEmailEvent, customerName: string): OrderWithItems
 export async function sendTestEmail(input: unknown): Promise<ActionResult<string>> {
   if (!isSupabaseConfigured) return fail("Configure o Supabase.");
   if (!(await isAdminUser())) return fail("Acesso negado.");
-  if (!isZeptomailConfigured) {
-    return fail("ZeptoMail não configurado: defina ZEPTOMAIL_TOKEN e ZEPTOMAIL_FROM_EMAIL.");
-  }
 
   const parsed = emailEventSchema.safeParse(input);
   if (!parsed.success) return fail("E-mail inválido.");
