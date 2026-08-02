@@ -25,7 +25,7 @@ const items = [
   { href: "/admin/categorias", label: "Categorias", icon: Tags },
   { href: "/admin/clientes", label: "Clientes", icon: Contact },
   { href: "/admin/usuarios", label: "Usuários", icon: Users },
-  { href: "/admin/configuracoes/whatsapp", label: "Comunicação", icon: MessageSquare },
+  { href: "/admin/configuracoes/whatsapp", label: "WhatsApp", icon: MessageSquare },
   { href: "/admin/email", label: "E-mail", icon: Mail },
   { href: "/admin/configuracoes/entrega", label: "Entregas", icon: Truck },
   { href: "/admin/configuracoes/visual", label: "Visual", icon: Palette },

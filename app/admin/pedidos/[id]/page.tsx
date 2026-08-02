@@ -165,7 +165,7 @@ export default async function AdminOrderDetail({
             </p>
             {pixKeyMissing && (
               <p className="mt-1 w-fit rounded-md bg-warning/10 px-2 py-1 text-xs text-warning-foreground">
-                ⚠ Defina a chave Pix em Comunicação para ela entrar na mensagem.
+                ⚠ Defina a chave Pix em WhatsApp para ela entrar na mensagem.
               </p>
             )}
           </CardContent>

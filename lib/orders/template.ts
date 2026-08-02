@@ -4,7 +4,7 @@ import { formatBRL, normalizePhone } from "@/lib/utils";
 import type { EmailSettings, OrderWithItems, PixSettings } from "@/types/db";
 
 /**
- * Mensagem padrão do Pix. Pré-preenche o campo da Comunicação e também serve
+ * Mensagem padrão do Pix. Pré-preenche o campo do menu WhatsApp e também serve
  * de fallback quando nenhum template foi salvo. Editável no painel.
  */
 export const DEFAULT_PIX_MESSAGE = `Olá {{cliente}}! 🙏
@@ -24,7 +24,7 @@ Assim que o pagamento for confirmado, seu pedido segue para separação e entreg
 /**
  * Config Pix padrão da loja — usada quando o admin ainda não preencheu as
  * configurações. A chave e o WhatsApp são dados públicos de pagamento; o admin
- * pode sobrescrevê-los em Comunicação → Pix.
+ * pode sobrescrevê-los em WhatsApp → Pix.
  */
 export const STORE_PIX_DEFAULTS: PixSettings = {
   chave: "pixdaconquista@gmail.com",
