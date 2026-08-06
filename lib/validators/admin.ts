@@ -7,6 +7,22 @@ export const orderStatusSchema = z.object({
 });
 export type OrderStatusInput = z.infer<typeof orderStatusSchema>;
 
+/** Edição/correção manual do status: aceita QUALQUER status (inclui 'solicitado'). */
+export const orderStatusEditSchema = z.object({
+  orderId: z.string().uuid(),
+  to: z.enum([
+    "solicitado",
+    "aceito",
+    "em_separacao",
+    "saiu_entrega",
+    "entregue",
+    "recusado",
+    "cancelado",
+  ]),
+  reason: z.string().max(500).optional(),
+});
+export type OrderStatusEditInput = z.infer<typeof orderStatusEditSchema>;
+
 /** Conta de envio de e-mail (Gmail SMTP). `account` vazio = desativar (volta ao
  * remetente padrão). `appPassword` vazio = manter a senha já salva. */
 export const emailSenderSchema = z.object({

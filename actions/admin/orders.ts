@@ -9,7 +9,11 @@ import { dispatchOrderEmail } from "@/lib/notifications/order-email";
 import { REASON_REQUIRED, canTransition } from "@/lib/orders/fsm";
 import { statusWhatsappMessage, whatsappLink } from "@/lib/orders/template";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { orderStatusSchema, paymentEditSchema } from "@/lib/validators/admin";
+import {
+  orderStatusEditSchema,
+  orderStatusSchema,
+  paymentEditSchema,
+} from "@/lib/validators/admin";
 import type { EmailSettings, FulfillmentType, OrderStatus } from "@/types/db";
 import { revalidatePath } from "next/cache";
 
@@ -49,6 +53,72 @@ export async function changeOrderStatus(input: unknown): Promise<ActionResult> {
   // E-mail transacional ao cliente (best-effort — não bloqueia a transição).
   // Cada status do fluxo tem seu e-mail; `saiu_entrega` avisa "pronto para
   // retirada" ou "saiu para entrega" conforme o modo de recebimento.
+  const event = emailEventForStatus(to, current.fulfillment_type as FulfillmentType);
+  if (event) {
+    try {
+      await dispatchOrderEmail(orderId, event);
+    } catch {
+      // best-effort
+    }
+  }
+
+  revalidatePath("/admin/pedidos");
+  revalidatePath(`/admin/pedidos/${orderId}`);
+  return ok(undefined);
+}
+
+/** Mensagem amigável para o erro que o banco devolve na edição de status. */
+function friendlyStatusError(msg: string): string {
+  if (msg.includes("Estoque insuficiente")) return msg; // já vem em PT, com item e tamanho
+  if (msg.includes("Informe o motivo")) return "Informe o motivo (recusa/cancelamento).";
+  if (msg.includes("Acesso negado")) return "Acesso negado.";
+  if (msg.includes("não encontrado")) return "Pedido não encontrado.";
+  return "Não foi possível alterar o status. Tente novamente.";
+}
+
+/**
+ * Edição/correção MANUAL do status pelo admin — força qualquer status, fora da
+ * ordem normal do fluxo (via RPC admin_set_order_status). Reabrir um pedido
+ * cancelado/recusado exige estoque: se faltar, o banco recusa e o motivo volta
+ * pro admin (pop-up). Reenvia o e-mail do novo status, como no avanço normal.
+ */
+export async function editOrderStatus(input: unknown): Promise<ActionResult> {
+  if (!isSupabaseConfigured) return fail("Configure o Supabase.");
+  if (!(await isAdminUser())) return fail("Acesso negado.");
+
+  const parsed = orderStatusEditSchema.safeParse(input);
+  if (!parsed.success) return fail("Dados inválidos.");
+  const { orderId, to, reason } = parsed.data;
+
+  if (REASON_REQUIRED.includes(to) && !reason?.trim()) {
+    return fail("Informe o motivo.");
+  }
+
+  const supabase = await createClient();
+  const { data: current } = await supabase
+    .from("orders")
+    .select("status, fulfillment_type")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!current) return fail("Pedido não encontrado.");
+  if (current.status === to) return fail("O pedido já está nesse status.");
+
+  const { error } = await supabase.rpc("admin_set_order_status", {
+    p_order: orderId,
+    p_new: to,
+    p_reason: reason?.trim() ?? null,
+  });
+  if (error) return fail(friendlyStatusError(error.message));
+
+  const user = await getCurrentUser();
+  await logAudit(user?.id ?? null, "order.status_edit", "order", orderId, {
+    from: current.status,
+    to,
+    reason: reason?.trim() ?? null,
+  });
+
+  // Reenvia o e-mail do novo status (escolha do lojista). 'solicitado' não tem
+  // e-mail de transição (order_placed é da criação), então nesse caso não envia.
   const event = emailEventForStatus(to, current.fulfillment_type as FulfillmentType);
   if (event) {
     try {

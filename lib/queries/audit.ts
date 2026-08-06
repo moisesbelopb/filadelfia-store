@@ -2,7 +2,7 @@ import "server-only";
 
 import { AUDIT_RETENTION_DAYS } from "@/lib/audit";
 import { notificationEventLabel } from "@/lib/email/defaults";
-import { PAYMENT_NAME } from "@/lib/orders/fsm";
+import { PAYMENT_NAME, STATUS_LABEL } from "@/lib/orders/fsm";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatBRL } from "@/lib/utils";
 
@@ -106,6 +106,11 @@ function describe(
       return `Anexou o comprovante de pagamento ao pedido${t}`;
     case "order.receipt.remove":
       return `Removeu o comprovante de pagamento do pedido${t}`;
+    case "order.status_edit": {
+      const de = STATUS_LABEL[meta?.from as keyof typeof STATUS_LABEL] ?? String(meta?.from ?? "?");
+      const para = STATUS_LABEL[meta?.to as keyof typeof STATUS_LABEL] ?? String(meta?.to ?? "?");
+      return `Corrigiu o status do pedido${t}: ${de} → ${para}`;
+    }
     case "order.notify_whatsapp":
       return `Enviou pelo WhatsApp o aviso "${notificationEventLabel(
         meta?.event as string | undefined,
