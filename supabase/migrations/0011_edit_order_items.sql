@@ -26,7 +26,8 @@ begin
   update public.orders
      set subtotal = v_subtotal,
          total = v_total,
-         payment_status = case when v_paid >= v_total then 'pago' else 'pendente' end
+         payment_status =
+           (case when v_paid >= v_total then 'pago' else 'pendente' end)::public.payment_status
    where id = p_order;
 end $$;
 
