@@ -39,6 +39,18 @@ export const orderRefundSchema = z.object({
 });
 export type OrderRefundInput = z.infer<typeof orderRefundSchema>;
 
+/** Excluir um item do pedido. */
+export const itemDeleteSchema = z.object({ itemId: z.string().uuid() });
+export type ItemDeleteInput = z.infer<typeof itemDeleteSchema>;
+
+/** Alterar um item: quantidade e/ou variante (tamanho ou produto). */
+export const itemChangeSchema = z.object({
+  itemId: z.string().uuid(),
+  variantId: z.string().uuid(),
+  quantity: z.coerce.number().int().min(1).max(99),
+});
+export type ItemChangeInput = z.infer<typeof itemChangeSchema>;
+
 /** Conta de envio de e-mail (Gmail SMTP). `account` vazio = desativar (volta ao
  * remetente padrão). `appPassword` vazio = manter a senha já salva. */
 export const emailSenderSchema = z.object({

@@ -255,6 +255,47 @@ export async function listAdminProducts(): Promise<ProductWithImages[]> {
   return (data as ProductWithImages[] | null) ?? [];
 }
 
+export interface PickerVariant {
+  id: string;
+  size: string;
+  stock: number;
+}
+export interface PickerProduct {
+  id: string;
+  name: string;
+  price: number;
+  variants: PickerVariant[];
+}
+
+/** Produtos ativos + variantes (id, tamanho, estoque) para o seletor de troca de item. */
+export async function getProductsForPicker(): Promise<PickerProduct[]> {
+  if (!isSupabaseConfigured) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("products")
+    .select("id, name, price, product_variants(id, size, stock, position)")
+    .eq("is_active", true)
+    .order("name");
+  const rows =
+    (data as
+      | {
+          id: string;
+          name: string;
+          price: number;
+          product_variants: { id: string; size: string; stock: number; position: number }[] | null;
+        }[]
+      | null) ?? [];
+  return rows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    price: Number(p.price),
+    variants: (p.product_variants ?? [])
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((v) => ({ id: v.id, size: v.size, stock: v.stock })),
+  }));
+}
+
 export async function getAdminProduct(id: string): Promise<ProductWithImages | null> {
   if (!isSupabaseConfigured) return demoProducts.find((p) => p.id === id) ?? null;
   const supabase = await createClient();

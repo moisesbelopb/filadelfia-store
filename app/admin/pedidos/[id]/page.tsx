@@ -19,6 +19,7 @@ import {
   getMessageTemplate,
   getOrderPayments,
   getOrderReceipts,
+  getProductsForPicker,
   getSetting,
 } from "@/lib/queries/admin";
 import { formatBRL, formatDateTime } from "@/lib/utils";
@@ -43,12 +44,13 @@ export default async function AdminOrderDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [{ order, logs }, template, pix, receipts, payments] = await Promise.all([
+  const [{ order, logs }, template, pix, receipts, payments, products] = await Promise.all([
     getAdminOrder(id),
     getMessageTemplate("pix"),
     getSetting<PixSettings>("pix"),
     getOrderReceipts(id),
     getOrderPayments(id),
+    getProductsForPicker(),
   ]);
   if (!order) notFound();
 
@@ -177,7 +179,7 @@ export default async function AdminOrderDetail({
             <CardTitle className="text-base">Itens</CardTitle>
           </CardHeader>
           <CardContent>
-            <OrderItemsAdmin items={order.order_items} total={order.total} />
+            <OrderItemsAdmin items={order.order_items} total={order.total} products={products} />
           </CardContent>
         </Card>
       </div>

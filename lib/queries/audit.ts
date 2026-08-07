@@ -122,6 +122,16 @@ function describe(
         ? `Marcou pendência no item${prod} do pedido${t}: ${String(meta.note)}`
         : `Removeu a pendência do item${prod} do pedido${t}`;
     }
+    case "order.item_delete": {
+      const prod = meta?.product ? ` "${String(meta.product)}"` : "";
+      return `Removeu o item${prod} do pedido${t}`;
+    }
+    case "order.item_change": {
+      const prod = meta?.product ? `${String(meta.product)}` : "item";
+      const size = meta?.size ? ` (tam. ${String(meta.size)})` : "";
+      const qty = meta?.quantity ? ` × ${String(meta.quantity)}` : "";
+      return `Alterou um item do pedido${t} para ${prod}${size}${qty}`;
+    }
     case "order.notify_whatsapp":
       return `Enviou pelo WhatsApp o aviso "${notificationEventLabel(
         meta?.event as string | undefined,
