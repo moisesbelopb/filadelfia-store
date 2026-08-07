@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import { isNativeAdmin } from "@/lib/auth";
 import { AUDIT_RETENTION_DAYS } from "@/lib/audit";
+import { isNativeAdmin } from "@/lib/auth";
 import { getAuditLogs } from "@/lib/queries/audit";
 import { ShieldAlert } from "lucide-react";
 import type { Metadata } from "next";
@@ -28,11 +28,37 @@ function formatDateTime(iso: string): { date: string; time: string } {
   return { date, time };
 }
 
-export default async function LogsPage() {
+/** Data de hoje (ou N dias atrás) no fuso de Brasília, formato YYYY-MM-DD. */
+function brtDate(offsetDays = 0): string {
+  return new Date(Date.now() - offsetDays * 86_400_000).toLocaleDateString("en-CA", {
+    timeZone: "America/Sao_Paulo",
+  });
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const brDisplay = (d: string) => d.split("-").reverse().join("/");
+
+export default async function LogsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ de?: string; ate?: string }>;
+}) {
   // Acesso EXCLUSIVO do administrador nativo.
   if (!(await isNativeAdmin())) redirect("/admin");
 
-  const logs = await getAuditLogs();
+  const { de = "", ate = "" } = await searchParams;
+  // Datas interpretadas no fuso de Brasília (dia inteiro).
+  const start = DATE_RE.test(de) ? new Date(`${de}T00:00:00-03:00`).toISOString() : undefined;
+  const end = DATE_RE.test(ate) ? new Date(`${ate}T23:59:59.999-03:00`).toISOString() : undefined;
+  const filtered = Boolean(start || end);
+  const today = brtDate(0);
+  const presets = [
+    { label: "Hoje", de: today, ate: today },
+    { label: "Últimos 7 dias", de: brtDate(6), ate: today },
+    { label: "Últimos 30 dias", de: brtDate(29), ate: today },
+  ];
+
+  const logs = await getAuditLogs(500, { start, end });
 
   return (
     <div className="flex flex-col gap-5">
@@ -48,9 +74,67 @@ export default async function LogsPage() {
         </p>
       </header>
 
+      {/* Filtro por período */}
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3">
+        <form method="get" className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="de" className="text-xs font-medium text-muted-foreground">
+              De
+            </label>
+            <input
+              type="date"
+              id="de"
+              name="de"
+              defaultValue={de}
+              max={today}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="ate" className="text-xs font-medium text-muted-foreground">
+              Até
+            </label>
+            <input
+              type="date"
+              id="ate"
+              name="ate"
+              defaultValue={ate}
+              max={today}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Filtrar
+          </button>
+          {filtered && (
+            <a
+              href="/admin/logs"
+              className="inline-flex h-10 items-center px-2 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              Limpar
+            </a>
+          )}
+        </form>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Atalhos:</span>
+          {presets.map((p) => (
+            <a
+              key={p.label}
+              href={`/admin/logs?de=${p.de}&ate=${p.ate}`}
+              className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary"
+            >
+              {p.label}
+            </a>
+          ))}
+        </div>
+      </div>
+
       {logs.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          Nenhuma ação registrada ainda.
+          {filtered ? "Nenhuma ação registrada nesse período." : "Nenhuma ação registrada ainda."}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -98,8 +182,15 @@ export default async function LogsPage() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        {logs.length} {logs.length === 1 ? "registro" : "registros"} · fuso de Brasília
-        (America/Sao_Paulo)
+        {logs.length} {logs.length === 1 ? "registro" : "registros"}
+        {filtered && de && ate
+          ? ` · ${brDisplay(de)} a ${brDisplay(ate)}`
+          : filtered && de
+            ? ` · a partir de ${brDisplay(de)}`
+            : filtered && ate
+              ? ` · até ${brDisplay(ate)}`
+              : ""}{" "}
+        · fuso de Brasília (America/Sao_Paulo)
       </p>
     </div>
   );

@@ -152,7 +152,10 @@ function describe(
  * Logs de auditoria dentro da janela de retenção, em ordem cronológica decrescente,
  * com o ator (nome/e-mail/papel) e a descrição legível da ação.
  */
-export async function getAuditLogs(limit = 500): Promise<AuditEntry[]> {
+export async function getAuditLogs(
+  limit = 500,
+  range?: { start?: string; end?: string },
+): Promise<AuditEntry[]> {
   let svc: ReturnType<typeof createServiceClient>;
   try {
     svc = createServiceClient();
@@ -161,13 +164,15 @@ export async function getAuditLogs(limit = 500): Promise<AuditEntry[]> {
   }
 
   const cutoff = new Date(Date.now() - AUDIT_RETENTION_DAYS * 86_400_000).toISOString();
+  // Piso da janela: nunca antes da retenção (logs mais antigos já foram purgados).
+  const lower = range?.start && range.start > cutoff ? range.start : cutoff;
 
-  const { data: logs } = await svc
+  let query = svc
     .from("audit_logs")
     .select("id, actor_id, action, entity_type, entity_id, metadata, created_at")
-    .gte("created_at", cutoff)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .gte("created_at", lower);
+  if (range?.end) query = query.lte("created_at", range.end);
+  const { data: logs } = await query.order("created_at", { ascending: false }).limit(limit);
   if (!logs?.length) return [];
 
   const idsOf = (type: string) =>
