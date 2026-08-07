@@ -56,6 +56,8 @@ export function CheckoutForm({
   const clear = useCart((s) => s.clear);
   const [mounted, setMounted] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
+  // Conferência obrigatória (tamanho/cor/modelo) antes de enviar — política de não-troca.
+  const [confirmed, setConfirmed] = useState(false);
   useEffect(() => setMounted(true), []);
 
   const modes: FulfillmentType[] = [];
@@ -149,6 +151,14 @@ export function CheckoutForm({
   }
 
   async function onSubmit(values: CheckoutInput) {
+    if (!confirmed) {
+      toast({
+        variant: "error",
+        title: "Confirme a revisão",
+        description: "Marque que revisou os itens (tamanho, cor e modelo) antes de enviar.",
+      });
+      return;
+    }
     if (values.fulfillment === "entrega" && !findCityFee(delivery, values.address?.city ?? "")) {
       toast({
         variant: "error",
@@ -468,6 +478,52 @@ export function CheckoutForm({
         </CardContent>
       </Card>
 
+      {/* Conferência antes de enviar — trava o botão até o cliente confirmar. */}
+      <Card className="border-warning/40 bg-warning/10">
+        <CardContent className="flex flex-col gap-3 py-5">
+          <div className="flex items-center gap-2">
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-warning text-sm text-warning-foreground">
+              ✓
+            </span>
+            <span className="font-bold text-warning-foreground">Confira antes de enviar</span>
+          </div>
+          <p className="text-sm">
+            Revise com carinho cada item — <strong>tamanho, cor e modelo</strong>. Como preparamos
+            tudo especialmente para você, <strong>não realizamos trocas</strong>. Essa conferência
+            rápida garante que seu pedido chegue certinho. 💛
+          </p>
+
+          {items.length > 0 && (
+            <ul className="flex flex-col gap-1.5 rounded-md border border-border bg-card p-3 text-sm">
+              {items.map((it) => (
+                <li key={it.variantId} className="flex items-center gap-2">
+                  <span className="font-medium">{it.name}</span>
+                  <span className="text-muted-foreground">
+                    · Tam. {it.size}
+                    {it.colorName ? ` · ${it.colorName}` : ""}
+                  </span>
+                  <span className="ml-auto whitespace-nowrap text-muted-foreground">
+                    {it.quantity} un
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(e) => setConfirmed(e.target.checked)}
+              className="mt-0.5 size-5 shrink-0 accent-primary"
+            />
+            <span className="text-sm font-medium">
+              Confirmo que revisei os itens (tamanho, cor e modelo).
+            </span>
+          </label>
+        </CardContent>
+      </Card>
+
       <div className="fixed inset-x-0 bottom-[calc(3.5rem_+_env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 p-4 backdrop-blur sm:bottom-0 sm:pb-[calc(1rem_+_env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-5xl items-center gap-4">
           <div className="flex flex-col">
@@ -479,7 +535,7 @@ export function CheckoutForm({
             <span className="text-xs text-muted-foreground">Total</span>
             <span className="text-lg font-bold">{formatBRL(total)}</span>
           </div>
-          <Button type="submit" size="lg" className="flex-1" disabled={isSubmitting}>
+          <Button type="submit" size="lg" className="flex-1" disabled={isSubmitting || !confirmed}>
             {isSubmitting ? "Enviando..." : "Enviar pedido"}
           </Button>
         </div>
