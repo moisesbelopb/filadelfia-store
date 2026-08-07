@@ -759,7 +759,7 @@ export async function getFinancialData(range?: DashboardRange): Promise<{
   const [payChunks, itemChunks] = await Promise.all([
     Promise.all(
       chunks.map((c) =>
-        supabase.from("order_payments").select("order_id, method, amount").in("order_id", c),
+        supabase.from("order_payments").select("order_id, method, amount, kind").in("order_id", c),
       ),
     ),
     Promise.all(
@@ -769,13 +769,13 @@ export async function getFinancialData(range?: DashboardRange): Promise<{
     ),
   ]);
 
-  const paysByOrder = new Map<string, { method: PaymentMethod; amount: number }[]>();
+  const paysByOrder = new Map<string, { method: PaymentMethod; amount: number; kind: string }[]>();
   for (const { data } of payChunks) {
     for (const p of (data as
-      | { order_id: string; method: PaymentMethod; amount: number }[]
+      | { order_id: string; method: PaymentMethod; amount: number; kind: string }[]
       | null) ?? []) {
       const arr = paysByOrder.get(p.order_id) ?? [];
-      arr.push({ method: p.method, amount: Number(p.amount) });
+      arr.push({ method: p.method, amount: Number(p.amount), kind: p.kind });
       paysByOrder.set(p.order_id, arr);
     }
   }
@@ -799,10 +799,9 @@ export async function getFinancialData(range?: DashboardRange): Promise<{
     const total = Number(o.total);
     const cost = costByOrder.get(o.id) ?? 0;
     const pays = paysByOrder.get(o.id) ?? [];
-    const paid = Math.min(
-      total,
-      pays.reduce((s, p) => s + p.amount, 0),
-    );
+    // Estornos subtraem do recebido.
+    const net = pays.reduce((s, p) => s + (p.kind === "estorno" ? -p.amount : p.amount), 0);
+    const paid = Math.min(total, Math.max(0, net));
     const saldo = Math.max(0, total - paid);
     const paidRatio = total > 0 ? paid / total : 0;
 
@@ -823,9 +822,11 @@ export async function getFinancialData(range?: DashboardRange): Promise<{
     for (const p of pays) {
       const b = byMethodMap.get(p.method);
       if (!b) continue;
-      b.pedidos += p.amount;
-      b.custo += total > 0 ? cost * (Math.min(p.amount, total) / total) : 0;
-      b.count += 1;
+      const signed = p.kind === "estorno" ? -p.amount : p.amount;
+      const capped = Math.max(-total, Math.min(signed, total));
+      b.pedidos += signed;
+      b.custo += total > 0 ? cost * (capped / total) : 0;
+      if (p.kind !== "estorno") b.count += 1;
     }
   }
 

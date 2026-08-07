@@ -99,12 +99,19 @@ export default async function PedidoDetailPage({
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {order.order_items.map((it) => (
-            <div key={it.id} className="flex justify-between gap-2 text-sm">
-              <span>
-                {it.quantity}× {it.product_name}
-                {it.variant_size ? ` · Tam. ${it.variant_size}` : ""}
-              </span>
-              <span className="font-medium">{formatBRL(it.line_total)}</span>
+            <div key={it.id} className="flex flex-col gap-1">
+              <div className="flex justify-between gap-2 text-sm">
+                <span>
+                  {it.quantity}× {it.product_name}
+                  {it.variant_size ? ` · Tam. ${it.variant_size}` : ""}
+                </span>
+                <span className="font-medium">{formatBRL(it.line_total)}</span>
+              </div>
+              {it.pending_note && (
+                <p className="rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning-foreground">
+                  ⚠ <strong>Pendência:</strong> {it.pending_note}
+                </p>
+              )}
             </div>
           ))}
           <Separator className="my-1" />

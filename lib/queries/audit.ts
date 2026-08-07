@@ -95,6 +95,11 @@ function describe(
     }
     case "order.payment.remove":
       return `Removeu um pagamento do pedido${t}`;
+    case "order.payment.refund": {
+      const valor = formatBRL(Number(meta?.amount ?? 0));
+      const forma = PAYMENT_NAME[meta?.method as keyof typeof PAYMENT_NAME];
+      return `Registrou um estorno de ${valor}${forma ? ` (${forma})` : ""} no pedido${t}`;
+    }
     case "order.payment": {
       const forma =
         PAYMENT_NAME[meta?.paymentMethod as keyof typeof PAYMENT_NAME] ??
@@ -110,6 +115,12 @@ function describe(
       const de = STATUS_LABEL[meta?.from as keyof typeof STATUS_LABEL] ?? String(meta?.from ?? "?");
       const para = STATUS_LABEL[meta?.to as keyof typeof STATUS_LABEL] ?? String(meta?.to ?? "?");
       return `Corrigiu o status do pedido${t}: ${de} → ${para}`;
+    }
+    case "order.item_pending": {
+      const prod = meta?.product ? ` "${String(meta.product)}"` : "";
+      return meta?.note
+        ? `Marcou pendência no item${prod} do pedido${t}: ${String(meta.note)}`
+        : `Removeu a pendência do item${prod} do pedido${t}`;
     }
     case "order.notify_whatsapp":
       return `Enviou pelo WhatsApp o aviso "${notificationEventLabel(

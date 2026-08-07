@@ -1,15 +1,16 @@
 "use client";
 
-import { addOrderPayment, deleteOrderPayment } from "@/actions/admin/payments";
+import { addOrderPayment, addOrderRefund, deleteOrderPayment } from "@/actions/admin/payments";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { MAX_INSTALLMENTS } from "@/lib/orders/card-fees";
 import { toast } from "@/lib/use-toast";
 import { cn, formatBRL } from "@/lib/utils";
 import type { OrderPayment, PaymentMethod } from "@/types/db";
-import { Trash2 } from "lucide-react";
+import { RotateCcw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -29,7 +30,7 @@ function parseBRL(s: string): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-/** Pagamentos do pedido: registrar (parcial ou total), ver saldo devedor e remover. */
+/** Pagamentos do pedido: registrar (parcial/total), estornar (parcial/total) e ver saldo. */
 export function OrderPayments({
   orderId,
   total,
@@ -42,13 +43,25 @@ export function OrderPayments({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const paid = payments.reduce((s, p) => s + Number(p.amount), 0);
-  const saldo = Math.max(0, total - paid);
-  const isPago = saldo <= 0 && paid > 0;
+  const estornado = payments
+    .filter((p) => p.kind === "estorno")
+    .reduce((s, p) => s + Number(p.amount), 0);
+  // Recebido líquido: pagamentos menos estornos.
+  const recebido = payments.reduce(
+    (s, p) => s + (p.kind === "estorno" ? -Number(p.amount) : Number(p.amount)),
+    0,
+  );
+  const saldo = Math.max(0, total - recebido);
+  const isPago = saldo <= 0 && recebido > 0;
 
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("pix");
   const [installments, setInstallments] = useState(1);
+
+  const [showRefund, setShowRefund] = useState(false);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundMethod, setRefundMethod] = useState<PaymentMethod>("pix");
+  const [refundNote, setRefundNote] = useState("");
 
   function add() {
     const value = parseBRL(amount);
@@ -73,12 +86,37 @@ export function OrderPayments({
     });
   }
 
+  function refund() {
+    const value = parseBRL(refundAmount);
+    if (!value) {
+      toast({ variant: "error", title: "Informe o valor do estorno" });
+      return;
+    }
+    startTransition(async () => {
+      const res = await addOrderRefund({
+        orderId,
+        amount: value,
+        method: refundMethod,
+        note: refundNote.trim() || undefined,
+      });
+      if (!res.ok) {
+        toast({ variant: "error", title: "Não foi possível estornar", description: res.error });
+        return;
+      }
+      toast({ variant: "success", title: "Estorno registrado" });
+      setRefundAmount("");
+      setRefundNote("");
+      setShowRefund(false);
+      router.refresh();
+    });
+  }
+
   function remove(id: string) {
     startTransition(async () => {
       const res = await deleteOrderPayment(id, orderId);
       if (!res.ok) toast({ variant: "error", title: "Erro", description: res.error });
       else {
-        toast({ variant: "success", title: "Pagamento removido" });
+        toast({ variant: "success", title: "Lançamento removido" });
         router.refresh();
       }
     });
@@ -106,8 +144,16 @@ export function OrderPayments({
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Recebido</span>
-            <span className="font-medium tabular-nums text-success">{formatBRL(paid)}</span>
+            <span className="font-medium tabular-nums text-success">{formatBRL(recebido)}</span>
           </div>
+          {estornado > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Estornado</span>
+              <span className="font-medium tabular-nums text-destructive">
+                − {formatBRL(estornado)}
+              </span>
+            </div>
+          )}
           <div className="flex items-center justify-between border-t border-border pt-2">
             <span className="text-sm font-semibold">Saldo devedor</span>
             <span
@@ -121,38 +167,55 @@ export function OrderPayments({
           </div>
         </div>
 
-        {/* Pagamentos registrados */}
+        {/* Lançamentos (pagamentos e estornos) */}
         {payments.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            {payments.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
-              >
-                <span className="flex-1 font-medium">
-                  {METHOD_LABEL[p.method]}
-                  {p.method === "cartao" && p.card_installments ? (
-                    <span className="text-muted-foreground"> · {p.card_installments}x</span>
-                  ) : null}
-                </span>
-                <span className="font-semibold tabular-nums">{formatBRL(Number(p.amount))}</span>
-                <button
-                  type="button"
-                  onClick={() => remove(p.id)}
-                  disabled={pending}
-                  className="text-muted-foreground transition-colors hover:text-destructive disabled:opacity-40"
-                  aria-label="Remover pagamento"
-                  title="Remover"
+            {payments.map((p) => {
+              const isRefund = p.kind === "estorno";
+              return (
+                <div
+                  key={p.id}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm",
+                    isRefund ? "border-destructive/30 bg-destructive/5" : "border-border",
+                  )}
                 >
-                  <Trash2 className="size-4" />
-                </button>
-              </div>
-            ))}
+                  <span className="flex-1 font-medium">
+                    {isRefund ? "Estorno · " : ""}
+                    {METHOD_LABEL[p.method]}
+                    {p.method === "cartao" && p.card_installments ? (
+                      <span className="text-muted-foreground"> · {p.card_installments}x</span>
+                    ) : null}
+                    {isRefund && p.note ? (
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        {p.note}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span
+                    className={cn("font-semibold tabular-nums", isRefund && "text-destructive")}
+                  >
+                    {isRefund ? "− " : ""}
+                    {formatBRL(Number(p.amount))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => remove(p.id)}
+                    disabled={pending}
+                    className="text-muted-foreground transition-colors hover:text-destructive disabled:opacity-40"
+                    aria-label="Remover lançamento"
+                    title="Remover"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
         {/* Registrar pagamento (some quando quitado) */}
-        {saldo > 0 ? (
+        {saldo > 0 && (
           <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border-strong bg-secondary/30 p-3">
             <p className="text-sm font-medium">Registrar pagamento</p>
             <div className="flex flex-wrap items-center gap-2">
@@ -216,11 +279,92 @@ export function OrderPayments({
               {pending ? "Salvando..." : "Registrar pagamento"}
             </Button>
           </div>
-        ) : (
+        )}
+
+        {isPago && (
           <p className="rounded-md bg-success/10 p-2.5 text-xs text-success">
             ✓ Pedido totalmente pago.
           </p>
         )}
+
+        {/* Estorno (parcial ou total) — disponível quando há valor recebido */}
+        {recebido > 0 &&
+          (showRefund ? (
+            <div className="flex flex-col gap-3 rounded-lg border border-dashed border-destructive/40 bg-destructive/5 p-3">
+              <p className="text-sm font-medium text-destructive">Registrar estorno</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 rounded-md border border-input bg-background px-2.5">
+                  <span className="text-sm text-muted-foreground">R$</span>
+                  <Input
+                    value={refundAmount}
+                    onChange={(e) => setRefundAmount(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    className="w-24 border-0 px-1 shadow-none focus-visible:ring-0"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRefundAmount(recebido.toFixed(2).replace(".", ","))}
+                  className="text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                  estornar tudo ({formatBRL(recebido)})
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {(["dinheiro", "pix", "cartao"] as PaymentMethod[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setRefundMethod(m)}
+                    className={cn(
+                      "rounded-lg border px-2 py-2 text-sm font-medium transition-colors",
+                      refundMethod === m
+                        ? "border-destructive bg-destructive text-destructive-foreground"
+                        : "border-border hover:bg-secondary",
+                    )}
+                  >
+                    {m === "cartao" ? "Cartão" : METHOD_LABEL[m]}
+                  </button>
+                ))}
+              </div>
+              <Textarea
+                value={refundNote}
+                onChange={(e) => setRefundNote(e.target.value)}
+                rows={2}
+                placeholder="Motivo do estorno (opcional)"
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={pending}
+                  onClick={refund}
+                  className="w-fit"
+                >
+                  {pending ? "Salvando..." : "Confirmar estorno"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => setShowRefund(false)}
+                  className="w-fit"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowRefund(true)}
+              className="w-fit text-destructive"
+            >
+              <RotateCcw className="size-4" /> Registrar estorno
+            </Button>
+          ))}
       </CardContent>
     </Card>
   );

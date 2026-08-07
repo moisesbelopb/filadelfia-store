@@ -153,15 +153,21 @@ export interface OrderItem {
   unit_price: number;
   quantity: number;
   line_total: number;
+  /** Observação de pendência do item (ex.: em falta, aguardando reposição). */
+  pending_note: string | null;
   created_at: string;
 }
 
-/** Um pagamento registrado num pedido (parcial ou total). */
+/** Um pagamento registrado num pedido (parcial ou total) — ou um estorno. */
 export interface OrderPayment {
   id: string;
   order_id: string;
   amount: number;
   method: PaymentMethod;
+  /** 'pagamento' (soma ao recebido) ou 'estorno' (subtrai do recebido). */
+  kind: "pagamento" | "estorno";
+  /** Motivo do estorno (opcional). */
+  note?: string | null;
   card_brand?: "visa" | "master" | "outros" | null;
   card_installments?: number | null;
   created_at: string;

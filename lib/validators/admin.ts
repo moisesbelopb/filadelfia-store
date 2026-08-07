@@ -23,6 +23,22 @@ export const orderStatusEditSchema = z.object({
 });
 export type OrderStatusEditInput = z.infer<typeof orderStatusEditSchema>;
 
+/** Pendência (falta de item) numa linha do pedido. Texto vazio limpa a pendência. */
+export const itemPendingSchema = z.object({
+  itemId: z.string().uuid(),
+  note: z.string().max(500),
+});
+export type ItemPendingInput = z.infer<typeof itemPendingSchema>;
+
+/** Estorno (total ou parcial) de um pedido. */
+export const orderRefundSchema = z.object({
+  orderId: z.string().uuid(),
+  amount: z.coerce.number().positive("Informe o valor do estorno").max(1_000_000),
+  method: z.enum(["pix", "dinheiro", "cartao"]),
+  note: z.string().max(500).optional(),
+});
+export type OrderRefundInput = z.infer<typeof orderRefundSchema>;
+
 /** Conta de envio de e-mail (Gmail SMTP). `account` vazio = desativar (volta ao
  * remetente padrão). `appPassword` vazio = manter a senha já salva. */
 export const emailSenderSchema = z.object({

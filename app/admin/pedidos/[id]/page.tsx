@@ -1,4 +1,5 @@
 import { OrderActions } from "@/components/admin/order-actions";
+import { OrderItemsAdmin } from "@/components/admin/order-items-admin";
 import { OrderPayments } from "@/components/admin/order-payments";
 import { OrderReceipts } from "@/components/admin/order-receipts";
 import { PaymentEditor } from "@/components/admin/payment-editor";
@@ -175,21 +176,8 @@ export default async function AdminOrderDetail({
           <CardHeader>
             <CardTitle className="text-base">Itens</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {order.order_items.map((it) => (
-              <div key={it.id} className="flex justify-between gap-2 text-sm">
-                <span>
-                  {it.quantity}× {it.product_name}
-                  {it.variant_size ? ` · Tam. ${it.variant_size}` : ""}
-                </span>
-                <span className="font-medium">{formatBRL(it.line_total)}</span>
-              </div>
-            ))}
-            <Separator className="my-1" />
-            <div className="flex justify-between font-semibold">
-              <span>Total</span>
-              <span>{formatBRL(order.total)}</span>
-            </div>
+          <CardContent>
+            <OrderItemsAdmin items={order.order_items} total={order.total} />
           </CardContent>
         </Card>
       </div>

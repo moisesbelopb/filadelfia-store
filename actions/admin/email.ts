@@ -54,6 +54,7 @@ function demoOrder(event: OrderEmailEvent, customerName: string): OrderWithItems
         unit_price: 60,
         quantity: 2,
         line_total: 120,
+        pending_note: null,
         created_at: now,
       },
     ],
